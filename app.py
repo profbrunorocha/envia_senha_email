@@ -43,6 +43,8 @@ SMTP_PASS = os.getenv('SMTP_PASS', '')
 # Configurações da aplicação
 SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
 
+ENABLE_EMAILS = os.getenv('ENABLE_EMAILS', 'false').lower() == 'true'
+
 # ============================================
 # INICIALIZAÇÃO FLASK
 # ============================================
@@ -154,25 +156,24 @@ def gerar_senha_aleatoria(tamanho=12):
 
 
 
-
 def enviar_email(destinatario, assunto, mensagem):
-    """Envia email via SMTP - VERSÃO COM TIMEOUT"""
+    """Envia email via SMTP - VERSÃO OTIMIZADA PARA RENDER"""
     try:
         print(f"📤 Tentando enviar email para: {destinatario}")
         
-        # Se não tem credenciais SMTP, retorna True (simula sucesso)
+        # Verificação rápida
         if not SMTP_USER or not SMTP_PASS:
-            print("⚠️ Credenciais SMTP não configuradas - simulando envio bem-sucedido")
-            return True
+            print("⚠️ Credenciais SMTP não configuradas")
+            return False
         
-        # Timeout reduzido para Render (free tier)
+        # Timeout reduzido para evitar problemas no Render
         import socket
-        socket.setdefaulttimeout(10)  # 10 segundos máximo
+        socket.setdefaulttimeout(15)  # 15 segundos máximo
         
         context = ssl.create_default_context()
         
-        # Conexão rápida com timeout
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+        # Conexão com timeout explícito
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
         
         try:
             server.starttls(context=context)
@@ -186,14 +187,14 @@ def enviar_email(destinatario, assunto, mensagem):
             msg.attach(MIMEText(mensagem, 'html'))
             server.send_message(msg)
             
-            print(f"✅ Email enviado com sucesso!")
+            print("✅ Email enviado com sucesso")
             return True
             
         except socket.timeout:
-            print("⚠️ Timeout ao enviar email (Render free tier)")
+            print("⚠️ Timeout ao conectar ao SMTP")
             return False
         except Exception as e:
-            print(f"⚠️ Erro SMTP (não crítico): {e}")
+            print(f"⚠️ Erro SMTP: {str(e)[:100]}...")  # Log reduzido
             return False
         finally:
             try:
@@ -202,9 +203,8 @@ def enviar_email(destinatario, assunto, mensagem):
                 pass
                 
     except Exception as e:
-        print(f"⚠️ Erro geral no envio de email (não crítico): {e}")
-        return False  # Não quebra o cadastro
-
+        print(f"⚠️ Erro geral no envio: {str(e)[:100]}...")
+        return False
 
 
 
@@ -671,6 +671,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
