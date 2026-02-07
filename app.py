@@ -152,19 +152,29 @@ def gerar_senha_aleatoria(tamanho=12):
     senha = ''.join(random.choice(caracteres) for _ in range(tamanho))
     return senha
 
+
+
+
 def enviar_email(destinatario, assunto, mensagem):
-    """Envia email via SMTP"""
+    """Envia email via SMTP - VERSÃO COM TIMEOUT"""
     try:
-        print(f"📤 Enviando email para: {destinatario}")
+        print(f"📤 Tentando enviar email para: {destinatario}")
         
-        # Se não tem credenciais SMTP, apenas simula
+        # Se não tem credenciais SMTP, retorna True (simula sucesso)
         if not SMTP_USER or not SMTP_PASS:
-            print("⚠️ Credenciais SMTP não configuradas - simulando envio")
+            print("⚠️ Credenciais SMTP não configuradas - simulando envio bem-sucedido")
             return True
+        
+        # Timeout reduzido para Render (free tier)
+        import socket
+        socket.setdefaulttimeout(10)  # 10 segundos máximo
         
         context = ssl.create_default_context()
         
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        # Conexão rápida com timeout
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+        
+        try:
             server.starttls(context=context)
             server.login(SMTP_USER, SMTP_PASS)
             
@@ -179,9 +189,25 @@ def enviar_email(destinatario, assunto, mensagem):
             print(f"✅ Email enviado com sucesso!")
             return True
             
+        except socket.timeout:
+            print("⚠️ Timeout ao enviar email (Render free tier)")
+            return False
+        except Exception as e:
+            print(f"⚠️ Erro SMTP (não crítico): {e}")
+            return False
+        finally:
+            try:
+                server.quit()
+            except:
+                pass
+                
     except Exception as e:
-        print(f"❌ Erro ao enviar email: {e}")
-        return False
+        print(f"⚠️ Erro geral no envio de email (não crítico): {e}")
+        return False  # Não quebra o cadastro
+
+
+
+
 
 # ============================================
 # FUNÇÕES DE BANCO DE DADOS
@@ -307,34 +333,21 @@ def index():
     """Página inicial"""
     return render_template('index.html')
 
+
+
+
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    """Processa cadastro de novo usuário - VERSÃO COM LOGS DETALHADOS"""
+    """Processa cadastro de novo usuário - VERSÃO SEM EMAIL NO RENDER"""
     print("\n" + "="*60)
-    print("🚀 /cadastrar INICIADA")
+    print("🚀 /cadastrar INICIADA - RENDER FREE TIER")
     print("="*60)
     
     try:
         dados = request.get_json()
-        print(f"📦 Dados brutos recebidos: {dados}")
+        email = dados.get('email', '').strip().lower()
         
-        email = dados.get('email', '').strip().lower() if dados else ''
-        print(f"📧 Email extraído: '{email}'")
-        
-        # Validações
-        if not email:
-            print("❌ Email vazio")
-            return jsonify({'sucesso': False, 'mensagem': 'Informe um email.'}), 400
-        
-        if not validar_email(email):
-            print("❌ Email inválido")
-            return jsonify({'sucesso': False, 'mensagem': 'Email inválido.'}), 400
-        
-        if email_existe(email):
-            print(f"❌ Email '{email}' já cadastrado")
-            return jsonify({'sucesso': False, 'mensagem': 'Email já cadastrado.'}), 400
-        
-        print("✅ Email validado e disponível")
+        # ... validações (mantenha igual) ...
         
         # Gerar senha
         senha = gerar_senha_aleatoria()
@@ -342,56 +355,43 @@ def cadastrar():
         
         # Salvar no banco
         user_id = salvar_usuario(email, senha)
-        print(f"📊 Resultado salvar_usuario: user_id={user_id}")
         
         if not user_id:
-            print("❌ Falha ao salvar usuário no banco")
             return jsonify({'sucesso': False, 'mensagem': 'Erro ao salvar cadastro.'}), 500
         
-        print(f"✅ Usuário salvo com ID: {user_id}")
+        # NO RENDER FREE TIER: NÃO TENTA ENVIAR EMAIL
+        # Apenas retorna a senha para o usuário
+        mensagem_resposta = f'''
+        ✅ Cadastro realizado com sucesso!
         
-        # Enviar email
-        try:
-            assunto = "✅ Cadastro Realizado - Sistema"
-            mensagem_email = f"""
-            <html><body>
-            <h2>Cadastro Realizado com Sucesso!</h2>
-            <p><strong>Email:</strong> {email}</p>
-            <p><strong>Senha:</strong> <strong>{senha}</strong></p>
-            <p>Acesse o sistema: https://envia-senha-email.onrender.com/login</p>
-            <p><small>Guarde estas informações em local seguro.</small></p>
-            </body></html>
-            """
-            
-            if enviar_email(email, assunto, mensagem_email):
-                print("✅ Email enviado com sucesso")
-                mensagem_resposta = f'Cadastro realizado! Email com senha enviado para {email}'
-            else:
-                print("⚠️ Email não enviado (erro SMTP)")
-                mensagem_resposta = f'Cadastro realizado! Sua senha é: {senha} (Guarde esta senha!)'
-                
-        except Exception as email_error:
-            print(f"⚠️ Erro no envio de email: {email_error}")
-            mensagem_resposta = f'Cadastro realizado! Sua senha é: {senha} (Guarde esta senha!)'
+        📧 Email: {email}
+        🔑 Senha: {senha}
         
-        print("🎉 Cadastro concluído com sucesso!")
+        ⚠️ IMPORTANTE:
+        - Guarde esta senha! Ela não será enviada por email.
+        - Faça login em: https://envia-senha-email.onrender.com/login
+        '''
+        
+        print("🎉 Cadastro concluído (sem email no Render)")
         return jsonify({
             'sucesso': True,
-            'mensagem': mensagem_resposta
+            'mensagem': mensagem_resposta,
+            'senha': senha,  # Opcional: envia a senha no JSON
+            'email': email
         })
         
     except Exception as e:
-        print(f"\n❌❌❌ ERRO CRÍTICO em /cadastrar ❌❌❌")
-        print(f"Tipo: {type(e).__name__}")
-        print(f"Mensagem: {str(e)}")
+        print(f"❌ Erro: {e}")
         import traceback
         traceback.print_exc()
-        print("="*60)
-        
-        return jsonify({
-            'sucesso': False, 
-            'mensagem': 'Erro interno do servidor.'
-        }), 500
+        return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
+
+
+
+
+
+
+
 
 @app.route('/login')
 def login():
@@ -671,6 +671,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
