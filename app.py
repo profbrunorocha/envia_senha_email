@@ -16,6 +16,7 @@ from email.mime.multipart import MIMEMultipart
 import ssl
 from functools import wraps
 from dotenv import load_dotenv
+from flask_cors import CORS  
 
 print("=" * 60)
 print("🚀 SISTEMA COMPLETO - VERSÃO CLOUD")
@@ -48,6 +49,18 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
 # ============================================
 
 app = Flask(__name__)
+CORS(app)
+
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://envia-senha-email.onrender.com", "http://localhost:5000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
+
+
+
 app.secret_key = SECRET_KEY
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
@@ -218,29 +231,57 @@ def index():
     return render_template('index.html')
 
 
+
+
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    print("\n" + "="*60)
-    print("📝 ROTA /cadastrar ACESSADA!")
-    print("="*60)
+    """Rota SIMPLIFICADA para teste"""
+    print("✅ /cadastrar ACESSADA - TESTE SIMPLES")
     
     try:
-        # Log do que está chegando
-        print(f"📦 Request data: {request.get_data()}")
+        # Log do que chegou
+        print(f"Headers: {dict(request.headers)}")
+        print(f"Content-Type: {request.content_type}")
         
-        dados = request.get_json()
-        if dados:
-            print(f"📧 Email recebido: {dados.get('email')}")
+        if request.is_json:
+            dados = request.get_json()
+            email = dados.get('email', '')
+            print(f"📧 Email recebido via JSON: {email}")
         else:
-            print("⚠️  Nenhum JSON recebido")
-            
-        # Resto do seu código...
+            print("⚠️  Não é JSON, tentando form-data")
+            email = request.form.get('email', '')
+            print(f"📧 Email recebido via form: {email}")
+        
+        # Resposta SIMPLES para teste
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'TESTE: Email {email} recebido com sucesso!',
+            'debug': {
+                'rota': '/cadastrar',
+                'metodo': 'POST',
+                'timestamp': 'ok'
+            }
+        })
         
     except Exception as e:
-        print(f"❌ ERRO: {e}")
+        print(f"❌ ERRO em /cadastrar: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
+        
+        return jsonify({
+            'sucesso': False,
+            'mensagem': f'Erro: {str(e)}',
+            'error_type': type(e).__name__
+        }), 500
+
+
+
+
+
+
+
+
+
 
 @app.route('/health')
 def health_check():
@@ -250,7 +291,57 @@ def health_check():
         'database': 'connected' if DATABASE_URL else 'disconnected'
     })
 
-# ... suas outras rotas aqui ...
+@app.route('/teste-cadastro')
+def teste_cadastro():
+    """Página de teste do cadastro"""
+    return '''
+    <html>
+    <body>
+        <h1>Teste de Cadastro</h1>
+        
+        <h2>Teste 1: Form HTML</h2>
+        <form id="form1">
+            <input type="email" name="email" placeholder="Email">
+            <button type="submit">Enviar (Form)</button>
+        </form>
+        
+        <h2>Teste 2: Fetch JSON</h2>
+        <button onclick="testeJSON()">Teste JSON</button>
+        
+        <div id="resultado"></div>
+        
+        <script>
+            // Teste 1: Form tradicional
+            document.getElementById('form1').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                
+                const response = await fetch('/cadastrar', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.getElementById('resultado').innerHTML = 
+                    `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+            });
+            
+            // Teste 2: Fetch JSON
+            async function testeJSON() {
+                const response = await fetch('/cadastrar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: 'teste@teste.com'})
+                });
+                
+                const result = await response.json();
+                document.getElementById('resultado').innerHTML = 
+                    `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+            }
+        </script>
+    </body>
+    </html>
+    '''
 
 # ============================================
 # CONFIGURAÇÃO PARA PRODUÇÃO
@@ -276,4 +367,5 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env")
         print("   2. Conexão com internet")
         print("   3. Credenciais do Neon")
+
 
