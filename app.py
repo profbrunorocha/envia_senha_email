@@ -28,23 +28,45 @@ print("=" * 60)
 
 load_dotenv()  # Carrega variáveis do .env
 
-# Configurações do Neon (PostgreSQL Cloud)
+
+
+
+
+import os
+
+# ========== CONFIGURAÇÕES DO BANCO ==========
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://neondb_owner:npg_pLaUwI7O6iHC@ep-falling-tree-aiqb3bkq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
 
-# Configurações do Render
+# ========== CONFIGURAÇÕES DO RENDER ==========
 RENDER_EXTERNAL_URL = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:5000')
 
-# Configurações SMTP (Gmail)
-SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-SMTP_USER = os.getenv('SMTP_USER', '')
-SMTP_PASS = os.getenv('SMTP_PASS', '')
-ENABLE_EMAILS = True
-
-# Configurações da aplicação
+# ========== CONFIGURAÇÕES DA APLICAÇÃO ==========
 SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
 
+# ========== CONFIGURAÇÕES DE E-MAIL ==========
 ENABLE_EMAILS = os.getenv('ENABLE_EMAILS', 'false').lower() == 'true'
+
+# Configurações SMTP (só carrega se e-mail ativado)
+if ENABLE_EMAILS:
+    SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+    SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+    SMTP_USER = os.getenv('SMTP_USER')
+    SMTP_PASS = os.getenv('SMTP_PASS')
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', SMTP_USER)
+    
+    # Verificar se todas as credenciais estão presentes
+    if not all([SMTP_USER, SMTP_PASS]):
+        print("⚠️ ATENÇÃO: SMTP_USER ou SMTP_PASS não configurados!")
+        print("⚠️ E-mails NÃO serão enviados mesmo com ENABLE_EMAILS=true")
+
+# ========== FIM DAS CONFIGURAÇÕES ==========
+# NADA MAIS AQUI - seu código continua com rotas, funções, etc.
+
+
+
+
+
+
 
 # ============================================
 # INICIALIZAÇÃO FLASK
@@ -157,45 +179,67 @@ def gerar_senha_aleatoria(tamanho=12):
 
 
 
-def enviar_email(destinatario, assunto, mensagem):
+
+
+def enviar_email(destinatario, assunto, corpo):
     """Envia email via SMTP - VERSÃO OTIMIZADA PARA RENDER"""
+    
+    # 1. Verificar se emails estão ativados
+    if not ENABLE_EMAILS:
+        print("📧 E-mails desativados (ENABLE_EMAILS=false)")
+        return False
+        
+    # 2. Verificar credenciais
+    if not SMTP_USER or not SMTP_PASS:
+        print("⚠️ Credenciais SMTP não configuradas")
+        return False
+    
+    print(f"📤 Tentando enviar email para: {destinatario}")
+    
     try:
-        print(f"📤 Tentando enviar email para: {destinatario}")
-        
-        # Verificação rápida
-        if not SMTP_USER or not SMTP_PASS:
-            print("⚠️ Credenciais SMTP não configuradas")
-            return False
-        
-        # Timeout reduzido para evitar problemas no Render
+        # 3. Importações necessárias (se não estiverem no topo)
+        import ssl
         import socket
-        socket.setdefaulttimeout(15)  # 15 segundos máximo
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
         
+        # 4. Timeout reduzido para Render
+        socket.setdefaulttimeout(15)
+        
+        # 5. Criar contexto SSL
         context = ssl.create_default_context()
         
-        # Conexão com timeout explícito
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
+        # 6. Conexão SMTP (USE SMTP_HOST, não SMTP_SERVER)
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
         
         try:
             server.starttls(context=context)
             server.login(SMTP_USER, SMTP_PASS)
             
+            # 7. Criar mensagem (USE 'corpo', não 'mensagem')
             msg = MIMEMultipart('alternative')
             msg['From'] = SMTP_USER
             msg['To'] = destinatario
             msg['Subject'] = assunto
             
-            msg.attach(MIMEText(mensagem, 'html'))
+            # Se for HTML, use 'html', se for texto simples, use 'plain'
+            msg.attach(MIMEText(corpo, 'html'))
+            
+            # 8. Enviar
             server.send_message(msg)
             
             print("✅ Email enviado com sucesso")
             return True
             
         except socket.timeout:
-            print("⚠️ Timeout ao conectar ao SMTP")
+            print("⚠️ Timeout ao conectar/enviar pelo SMTP")
+            return False
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ Erro de autenticação: {e}")
             return False
         except Exception as e:
-            print(f"⚠️ Erro SMTP: {str(e)[:100]}...")  # Log reduzido
+            print(f"⚠️ Erro SMTP: {e}")  # Mostre erro completo
             return False
         finally:
             try:
@@ -204,9 +248,8 @@ def enviar_email(destinatario, assunto, mensagem):
                 pass
                 
     except Exception as e:
-        print(f"⚠️ Erro geral no envio: {str(e)[:100]}...")
+        print(f"⚠️ Erro geral no envio: {e}")  # Mostre erro completo
         return False
-
 
 
 
@@ -522,6 +565,15 @@ def logout():
     session.clear()
     return redirect('/')
 
+
+@app.route('/test-email')
+def test_email():
+    try:
+        # Seu código de envio de email aqui
+        return "✅ Teste de e-mail executado - verifique logs"
+    except Exception as e:
+        return f"❌ Erro: {str(e)}"
+
 # ============================================
 # ROTAS DE DIAGNÓSTICO E TESTE
 # ============================================
@@ -672,6 +724,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
