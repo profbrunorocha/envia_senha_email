@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trocar Senha - Sistema</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 15px;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #667eea;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0;
+        }
+        
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .user-info strong {
+            color: #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .password-strength {
+            height: 5px;
+            background: #eee;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s, background 0.3s;
+        }
+        
+        .requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 3px;
+        }
+        
+        .requirement.met {
+            color: #4CAF50;
+        }
+        
+        .requirement.unmet {
+            color: #f44336;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .mensagem {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .sucesso {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .erro {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: girar 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes girar {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .password-toggle {
+            position: relative;
+        }
+        
+        .toggle-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <button class="back-btn" onclick="voltar()">←</button>
+                <h1>🔒 Trocar Senha</h1>
+            </div>
+            
+            <div class="user-info">
+                Logado como: <strong>{{ email }}</strong>
+            </div>
+            
+            <form id="formTrocarSenha">
+                <div class="form-group">
+                    <label for="nova_senha">Nova Senha:</label>
+                    <div class="password-toggle">
+                        <input type="password" id="nova_senha" required minlength="6">
+                        <button type="button" class="toggle-btn" onclick="togglePassword('nova_senha')">👁️</button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-bar" id="strengthBar"></div>
+                    </div>
+                    <div class="requirements">
+                        <div class="requirement" id="reqLength">✓ Pelo menos 6 caracteres</div>
+                        <div class="requirement" id="reqUpper">✓ Letra maiúscula</div>
+                        <div class="requirement" id="reqLower">✓ Letra minúscula</div>
+                        <div class="requirement" id="reqNumber">✓ Número</div>
+                        <div class="requirement" id="reqSpecial">✓ Caractere especial</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmar_senha">Confirmar Senha:</label>
+                    <div class="password-toggle">
+                        <input type="password" id="confirmar_senha" required minlength="6">
+                        <button type="button" class="toggle-btn" onclick="togglePassword('confirmar_senha')">👁️</button>
+                    </div>
+                    <div class="requirements">
+                        <div class="requirement" id="reqMatch">✓ As senhas coincidem</div>
+                    </div>
+                </div>
+                
+                <button type="submit" id="btnTrocar">
+                    <span id="textoBotao">Alterar Senha</span>
+                    <span id="carregando" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+            
+            <div id="mensagem" class="mensagem"></div>
+            
+            <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                <p><strong>📝 Dicas de Segurança:</strong></p>
+                <ul>
+                    <li>Use uma senha com pelo menos 12 caracteres</li>
+                    <li>Combine letras, números e símbolos</li>
+                    <li>Não use senhas óbvias como "123456"</li>
+                    <li>Não reutilize senhas de outros sites</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos DOM
+        const form = document.getElementById('formTrocarSenha');
+        const novaSenhaInput = document.getElementById('nova_senha');
+        const confirmarSenhaInput = document.getElementById('confirmar_senha');
+        const btnTrocar = document.getElementById('btnTrocar');
+        const textoBotao = document.getElementById('textoBotao');
+        const carregando = document.getElementById('carregando');
+        const mensagemDiv = document.getElementById('mensagem');
+        const strengthBar = document.getElementById('strengthBar');
+        
+        // Elementos de requisitos
+        const reqLength = document.getElementById('reqLength');
+        const reqUpper = document.getElementById('reqUpper');
+        const reqLower = document.getElementById('reqLower');
+        const reqNumber = document.getElementById('reqNumber');
+        const reqSpecial = document.getElementById('reqSpecial');
+        const reqMatch = document.getElementById('reqMatch');
+        
+        function mostrarMensagem(texto, tipo) {
+            mensagemDiv.textContent = texto;
+            mensagemDiv.className = 'mensagem ' + tipo;
+            mensagemDiv.style.display = 'block';
+        }
+        
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+        
+        function voltar() {
+            window.location.href = '/sistema';
+        }
+        
+        function verificarForcaSenha(senha) {
+            let forca = 0;
+            
+            // Verifica cada requisito
+            const temLength = senha.length >= 6;
+            const temUpper = /[A-Z]/.test(senha);
+            const temLower = /[a-z]/.test(senha);
+            const temNumber = /\d/.test(senha);
+            const temSpecial = /[!@#$%&*]/.test(senha);
+            
+            // Atualiza visual dos requisitos
+            reqLength.className = `requirement ${temLength ? 'met' : 'unmet'}`;
+            reqUpper.className = `requirement ${temUpper ? 'met' : 'unmet'}`;
+            reqLower.className = `requirement ${temLower ? 'met' : 'unmet'}`;
+            reqNumber.className = `requirement ${temNumber ? 'met' : 'unmet'}`;
+            reqSpecial.className = `requirement ${temSpecial ? 'met' : 'unmet'}`;
+            
+            // Calcula força
+            if (temLength) forca += 20;
+            if (temUpper) forca += 20;
+            if (temLower) forca += 20;
+            if (temNumber) forca += 20;
+            if (temSpecial) forca += 20;
+            
+            // Atualiza barra de força
+            strengthBar.style.width = `${forca}%`;
+            
+            // Cor baseada na força
+            if (forca < 40) {
+                strengthBar.style.background = '#f44336'; // Vermelho
+            } else if (forca < 80) {
+                strengthBar.style.background = '#ff9800'; // Laranja
+            } else {
+                strengthBar.style.background = '#4CAF50'; // Verde
+            }
+            
+            return forca >= 60; // Mínimo 60% de força
+        }
+        
+        function verificarSenhasIguais() {
+            const novaSenha = novaSenhaInput.value;
+            const confirmarSenha = confirmarSenhaInput.value;
+            const saoIguais = novaSenha === confirmarSenha && novaSenha.length > 0;
+            
+            reqMatch.className = `requirement ${saoIguais ? 'met' : 'unmet'}`;
+            return saoIguais;
+        }
+        
+        // Event listeners para validação em tempo real
+        novaSenhaInput.addEventListener('input', function() {
+            verificarForcaSenha(this.value);
+            verificarSenhasIguais();
+        });
+        
+        confirmarSenhaInput.addEventListener('input', verificarSenhasIguais);
+        
+        // Form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const novaSenha = novaSenhaInput.value;
+            const confirmarSenha = confirmarSenhaInput.value;
+            
+            // Validações
+            if (novaSenha.length < 6) {
+                mostrarMensagem('A senha deve ter pelo menos 6 caracteres.', 'erro');
+                return;
+            }
+            
+            if (!verificarForcaSenha(novaSenha)) {
+                mostrarMensagem('A senha é muito fraca. Use letras maiúsculas, minúsculas, números e símbolos.', 'erro');
+                return;
+            }
+            
+            if (novaSenha !== confirmarSenha) {
+                mostrarMensagem('As senhas não coincidem.', 'erro');
+                return;
+            }
+            
+            // Mostra loading
+            btnTrocar.disabled = true;
+            textoBotao.textContent = 'Processando...';
+            carregando.style.display = 'inline-block';
+            mensagemDiv.style.display = 'none';
+            
+            try {
+                const resposta = await fetch('/atualizar-senha', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nova_senha: novaSenha,
+                        confirmar_senha: confirmarSenha
+                    })
+                });
+                
+                const dados = await resposta.json();
+                
+                if (dados.sucesso) {
+                    mostrarMensagem(dados.mensagem, 'sucesso');
+                    
+                    // Limpa formulário
+                    novaSenhaInput.value = '';
+                    confirmarSenhaInput.value = '';
+                    strengthBar.style.width = '0%';
+                    
+                    // Redireciona após 3 segundos
+                    setTimeout(() => {
+                        window.location.href = '/sistema';
+                    }, 3000);
+                } else {
+                    mostrarMensagem(dados.mensagem, 'erro');
+                }
+                
+            } catch (erro) {
+                console.error('Erro:', erro);
+                mostrarMensagem('Erro de conexão. Tente novamente.', 'erro');
+            } finally {
+                btnTrocar.disabled = false;
+                textoBotao.textContent = 'Alterar Senha';
+                carregando.style.display = 'none';
+            }
+        });
+        
+        // Inicialização
+        window.onload = function() {
+            novaSenhaInput.focus();
+        };
+    </script>
+</body>
+</html>
