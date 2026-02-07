@@ -312,6 +312,30 @@ def login():
 
 
 
+
+# DEPOIS da rota /login
+
+@app.route('/logar', methods=['POST'])
+def logar():
+    """Processa login"""
+    # Seu código de login
+
+@app.route('/sistema')
+def sistema():
+    """Página após login"""
+    return render_template('sistema.html')
+
+@app.route('/logout')
+def logout():
+    """Logout"""
+    session.clear()
+    return redirect('/')
+
+
+
+
+
+
 @app.route('/health')
 def health_check():
     """Health check para Render"""
@@ -396,6 +420,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env")
         print("   2. Conexão com internet")
         print("   3. Credenciais do Neon")
+
 
 
 
