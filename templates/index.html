@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Sistema Completo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .mensagem {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .sucesso {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .erro {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .carregando {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: girar 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes girar {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📧 Cadastro no Sistema</h1>
+            
+            <form id="formCadastro">
+                <div class="form-group">
+                    <label for="email">Seu Email:</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="exemplo@email.com"
+                        required
+                        autofocus
+                    >
+                </div>
+                
+                <button type="submit" id="btnCadastrar">
+                    <span id="textoBotao">Cadastrar</span>
+                    <span id="carregando" class="carregando" style="display: none;"></span>
+                </button>
+            </form>
+            
+            <div id="mensagem" class="mensagem"></div>
+            
+            <div class="links">
+                <p>Já tem cadastro? <a href="/login">Faça login aqui</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('formCadastro');
+        const emailInput = document.getElementById('email');
+        const btnCadastrar = document.getElementById('btnCadastrar');
+        const textoBotao = document.getElementById('textoBotao');
+        const carregando = document.getElementById('carregando');
+        const mensagemDiv = document.getElementById('mensagem');
+        
+        function mostrarMensagem(texto, tipo) {
+            mensagemDiv.textContent = texto;
+            mensagemDiv.className = 'mensagem ' + tipo;
+            mensagemDiv.style.display = 'block';
+        }
+        
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            
+            if (!email.includes('@') || !email.includes('.')) {
+                mostrarMensagem('Digite um email válido.', 'erro');
+                return;
+            }
+            
+            mensagemDiv.style.display = 'none';
+            btnCadastrar.disabled = true;
+            textoBotao.textContent = 'Processando...';
+            carregando.style.display = 'inline-block';
+            
+            try {
+                const resposta = await fetch('/cadastrar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const dados = await resposta.json();
+                
+                if (dados.sucesso) {
+                    mostrarMensagem(dados.mensagem, 'sucesso');
+                    emailInput.value = '';
+                    
+                    // Sugere ir para o login
+                    setTimeout(() => {
+                        mostrarMensagem('Você será redirecionado para o login em 5 segundos...', 'sucesso');
+                        setTimeout(() => {
+                            window.location.href = '/login';
+                        }, 5000);
+                    }, 2000);
+                } else {
+                    mostrarMensagem(dados.mensagem, 'erro');
+                }
+                
+            } catch (erro) {
+                mostrarMensagem('Erro de conexão. Tente novamente.', 'erro');
+            } finally {
+                btnCadastrar.disabled = false;
+                textoBotao.textContent = 'Cadastrar';
+                carregando.style.display = 'none';
+            }
+        });
+        
+        window.onload = function() {
+            emailInput.focus();
+        };
+    </script>
+</body>
+</html>
