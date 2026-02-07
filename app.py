@@ -233,46 +233,70 @@ def index():
 
 
 
+
+
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    """Rota SIMPLIFICADA para teste"""
-    print("✅ /cadastrar ACESSADA - TESTE SIMPLES")
+    """Processa cadastro de novo usuário"""
+    print("\n✅ /cadastrar ACESSADA - VERSÃO PRODUÇÃO")
     
     try:
-        # Log do que chegou
-        print(f"Headers: {dict(request.headers)}")
-        print(f"Content-Type: {request.content_type}")
+        dados = request.get_json()
+        email = dados.get('email', '').strip().lower()
         
-        if request.is_json:
-            dados = request.get_json()
-            email = dados.get('email', '')
-            print(f"📧 Email recebido via JSON: {email}")
+        print(f"📧 Email recebido: {email}")
+        
+        if not email:
+            return jsonify({'sucesso': False, 'mensagem': 'Informe um email.'}), 400
+        
+        if not validar_email(email):
+            return jsonify({'sucesso': False, 'mensagem': 'Email inválido.'}), 400
+        
+        if email_existe(email):
+            return jsonify({'sucesso': False, 'mensagem': 'Email já cadastrado.'}), 400
+        
+        senha = gerar_senha_aleatoria()
+        print(f"🔑 Senha gerada: {senha}")
+        
+        user_id = salvar_usuario(email, senha)
+        
+        if user_id:
+            # Envia email
+            assunto = "✅ Cadastro Realizado - Sistema"
+            mensagem_email = f"""
+            <html><body>
+            <h2>Cadastro Realizado com Sucesso!</h2>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Senha:</strong> <strong>{senha}</strong></p>
+            <p>Acesse: https://envia-senha-email.onrender.com/login</p>
+            <p><small>Guarde estas informações em local seguro.</small></p>
+            </body></html>
+            """
+            
+            if enviar_email(email, assunto, mensagem_email):
+                return jsonify({
+                    'sucesso': True,
+                    'mensagem': f'Cadastro realizado! Email com senha enviado para {email}'
+                })
+            else:
+                return jsonify({
+                    'sucesso': True,
+                    'mensagem': f'Cadastro realizado! Sua senha é: {senha}'
+                })
         else:
-            print("⚠️  Não é JSON, tentando form-data")
-            email = request.form.get('email', '')
-            print(f"📧 Email recebido via form: {email}")
-        
-        # Resposta SIMPLES para teste
-        return jsonify({
-            'sucesso': True,
-            'mensagem': f'TESTE: Email {email} recebido com sucesso!',
-            'debug': {
-                'rota': '/cadastrar',
-                'metodo': 'POST',
-                'timestamp': 'ok'
-            }
-        })
-        
+            return jsonify({'sucesso': False, 'mensagem': 'Erro ao salvar no banco.'}), 500
+            
     except Exception as e:
         print(f"❌ ERRO em /cadastrar: {e}")
         import traceback
         traceback.print_exc()
-        
-        return jsonify({
-            'sucesso': False,
-            'mensagem': f'Erro: {str(e)}',
-            'error_type': type(e).__name__
-        }), 500
+        return jsonify({'sucesso': False, 'mensagem': 'Erro interno do servidor.'}), 500
+
+
+
+
+
+
 
 
 
@@ -372,6 +396,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env")
         print("   2. Conexão com internet")
         print("   3. Credenciais do Neon")
+
 
 
 
