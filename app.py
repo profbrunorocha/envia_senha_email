@@ -39,7 +39,7 @@ SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
 SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
 SMTP_USER = os.getenv('SMTP_USER', '')
 SMTP_PASS = os.getenv('SMTP_PASS', '')
-ENABLE_EMAILS = true
+ENABLE_EMAILS = True
 
 # Configurações da aplicação
 SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
@@ -672,6 +672,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
