@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema Completo</title>
+    <title>Login - Sistema</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -46,8 +46,7 @@
             font-weight: bold;
         }
         
-        input[type="email"],
-        input[type="password"] {
+        input {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -77,11 +76,6 @@
             background: #45a049;
         }
         
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
         .mensagem {
             margin-top: 20px;
             padding: 15px;
@@ -101,22 +95,6 @@
             border: 1px solid #f5c6cb;
         }
         
-        .carregando {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4CAF50;
-            border-radius: 50%;
-            animation: girar 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes girar {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
         .links {
             margin-top: 20px;
             text-align: center;
@@ -126,19 +104,6 @@
             color: #667eea;
             text-decoration: none;
             font-weight: bold;
-        }
-        
-        .links a:hover {
-            text-decoration: underline;
-        }
-        
-        .info {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-size: 14px;
-            color: #666;
         }
     </style>
 </head>
@@ -150,51 +115,28 @@
             <form id="formLogin">
                 <div class="form-group">
                     <label for="email">Email:</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        placeholder="seu@email.com"
-                        required
-                        autofocus
-                    >
+                    <input type="email" id="email" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="senha">Senha:</label>
-                    <input 
-                        type="password" 
-                        id="senha" 
-                        placeholder="Sua senha"
-                        required
-                    >
+                    <input type="password" id="senha" required>
                 </div>
                 
-                <div class="info">
-                    <p>Use a senha que recebeu por email após o cadastro.</p>
-                </div>
-                
-                <button type="submit" id="btnLogin">
-                    <span id="textoBotao">Entrar</span>
-                    <span id="carregando" class="carregando" style="display: none;"></span>
-                </button>
+                <button type="submit">Entrar</button>
             </form>
             
             <div id="mensagem" class="mensagem"></div>
             
             <div class="links">
-                <p>Não tem cadastro? <a href="/">Cadastre-se aqui</a></p>
-                <p>Esqueceu a senha? <em>(Use a mesma que recebeu por email)</em></p>
+                <p><a href="/">Voltar para cadastro</a></p>
+                <p><a href="/trocar-senha">Esqueci minha senha</a></p>
             </div>
         </div>
     </div>
 
     <script>
         const form = document.getElementById('formLogin');
-        const emailInput = document.getElementById('email');
-        const senhaInput = document.getElementById('senha');
-        const btnLogin = document.getElementById('btnLogin');
-        const textoBotao = document.getElementById('textoBotao');
-        const carregando = document.getElementById('carregando');
         const mensagemDiv = document.getElementById('mensagem');
         
         function mostrarMensagem(texto, tipo) {
@@ -206,37 +148,20 @@
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const email = emailInput.value.trim();
-            const senha = senhaInput.value;
-            
-            if (!email || !senha) {
-                mostrarMensagem('Preencha todos os campos.', 'erro');
-                return;
-            }
-            
-            mensagemDiv.style.display = 'none';
-            btnLogin.disabled = true;
-            textoBotao.textContent = 'Entrando...';
-            carregando.style.display = 'inline-block';
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
             
             try {
                 const resposta = await fetch('/logar', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        email: email,
-                        senha: senha 
-                    })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, senha})
                 });
                 
                 const dados = await resposta.json();
                 
                 if (dados.sucesso) {
                     mostrarMensagem(dados.mensagem, 'sucesso');
-                    
-                    // Redireciona para o sistema
                     setTimeout(() => {
                         window.location.href = dados.redirect || '/sistema';
                     }, 1000);
@@ -245,17 +170,9 @@
                 }
                 
             } catch (erro) {
-                mostrarMensagem('Erro de conexão. Tente novamente.', 'erro');
-            } finally {
-                btnLogin.disabled = false;
-                textoBotao.textContent = 'Entrar';
-                carregando.style.display = 'none';
+                mostrarMensagem('Erro de conexão', 'erro');
             }
         });
-        
-        window.onload = function() {
-            emailInput.focus();
-        };
     </script>
 </body>
 </html>
