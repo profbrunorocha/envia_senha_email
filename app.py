@@ -217,6 +217,31 @@ def index():
     """Página inicial"""
     return render_template('index.html')
 
+
+@app.route('/cadastrar', methods=['POST'])
+def cadastrar():
+    print("\n" + "="*60)
+    print("📝 ROTA /cadastrar ACESSADA!")
+    print("="*60)
+    
+    try:
+        # Log do que está chegando
+        print(f"📦 Request data: {request.get_data()}")
+        
+        dados = request.get_json()
+        if dados:
+            print(f"📧 Email recebido: {dados.get('email')}")
+        else:
+            print("⚠️  Nenhum JSON recebido")
+            
+        # Resto do seu código...
+        
+    except Exception as e:
+        print(f"❌ ERRO: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
+
 @app.route('/health')
 def health_check():
     """Health check para Render"""
@@ -251,3 +276,4 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env")
         print("   2. Conexão com internet")
         print("   3. Credenciais do Neon")
+
