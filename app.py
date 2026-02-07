@@ -278,7 +278,12 @@ def cadastrar():
 
 
 
-
+@app.route('/login')
+def login():
+    """Página de login"""
+    if 'usuario_id' in session:
+        return redirect(url_for('sistema'))
+    return render_template('login.html')
 
 
 
@@ -367,5 +372,6 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env")
         print("   2. Conexão com internet")
         print("   3. Credenciais do Neon")
+
 
 
