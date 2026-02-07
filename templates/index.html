@@ -19,7 +19,7 @@
         
         .container {
             width: 100%;
-            max-width: 450px;
+            max-width: 500px;
         }
         
         .card {
@@ -86,6 +86,7 @@
             padding: 15px;
             border-radius: 5px;
             display: none;
+            font-size: 14px;
         }
         
         .sucesso {
@@ -130,6 +131,46 @@
         .links a:hover {
             text-decoration: underline;
         }
+        
+        .debug-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .debug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        
+        .debug-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .debug-content.expanded {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .debug-log {
+            font-family: monospace;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 5px;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -157,51 +198,197 @@
             
             <div id="mensagem" class="mensagem"></div>
             
+            <!-- Painel de Debug -->
+            <div class="debug-panel" id="debugPanel">
+                <div class="debug-header" onclick="toggleDebug()">
+                    <span>🔧 Debug Console</span>
+                    <span id="debugToggle">▶</span>
+                </div>
+                <div class="debug-content" id="debugContent">
+                    <div class="debug-log" id="debugLog"></div>
+                </div>
+            </div>
+            
             <div class="links">
                 <p>Já tem cadastro? <a href="/login">Faça login aqui</a></p>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    Sistema: <span id="appStatus">Carregando...</span>
+                </p>
             </div>
         </div>
     </div>
 
     <script>
+        // ============================================
+        // ELEMENTOS DO DOM
+        // ============================================
         const form = document.getElementById('formCadastro');
         const emailInput = document.getElementById('email');
         const btnCadastrar = document.getElementById('btnCadastrar');
         const textoBotao = document.getElementById('textoBotao');
         const carregando = document.getElementById('carregando');
         const mensagemDiv = document.getElementById('mensagem');
+        const appStatus = document.getElementById('appStatus');
+        const debugLog = document.getElementById('debugLog');
+        const debugPanel = document.getElementById('debugPanel');
+        const debugContent = document.getElementById('debugContent');
+        const debugToggle = document.getElementById('debugToggle');
+        
+        // ============================================
+        // FUNÇÕES DE LOG E DEBUG
+        // ============================================
+        let logEntries = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            logEntries.push(entry);
+            
+            // Limita o log a 50 entradas
+            if (logEntries.length > 50) {
+                logEntries.shift();
+            }
+            
+            // Atualiza display
+            debugLog.textContent = logEntries.join('\n');
+            debugLog.scrollTop = debugLog.scrollHeight;
+            
+            // Mostra painel se for erro
+            if (type === 'error') {
+                debugPanel.style.display = 'block';
+            }
+            
+            // Log no console também
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function toggleDebug() {
+            debugContent.classList.toggle('expanded');
+            debugToggle.textContent = debugContent.classList.contains('expanded') ? '▼' : '▶';
+        }
         
         function mostrarMensagem(texto, tipo) {
             mensagemDiv.textContent = texto;
             mensagemDiv.className = 'mensagem ' + tipo;
             mensagemDiv.style.display = 'block';
+            addLog(`Frontend: ${texto}`, tipo === 'erro' ? 'error' : 'info');
         }
         
+        // ============================================
+        // VERIFICAÇÃO INICIAL DO SISTEMA
+        // ============================================
+        async function verificarSistema() {
+            addLog('Iniciando verificação do sistema...');
+            appStatus.textContent = 'Verificando...';
+            
+            try {
+                // Testa a raiz
+                addLog(`Testando conexão com: ${window.location.origin}/`);
+                const respostaRaiz = await fetch(window.location.origin + '/', {
+                    method: 'GET',
+                    headers: { 'Accept': 'text/html' }
+                });
+                
+                if (respostaRaiz.ok) {
+                    addLog(`✅ Página principal responde (${respostaRaiz.status})`);
+                } else {
+                    addLog(`⚠️ Página principal retornou ${respostaRaiz.status}`, 'warning');
+                }
+                
+                // Testa health check (se existir)
+                try {
+                    const respostaHealth = await fetch(window.location.origin + '/health', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    if (respostaHealth.ok) {
+                        const dados = await respostaHealth.json();
+                        addLog(`✅ Health check: ${JSON.stringify(dados)}`);
+                    }
+                } catch (e) {
+                    addLog('ℹ️ Rota /health não encontrada (normal)');
+                }
+                
+                appStatus.textContent = 'Sistema online';
+                appStatus.style.color = '#4CAF50';
+                
+            } catch (erro) {
+                addLog(`❌ Erro na verificação: ${erro.message}`, 'error');
+                appStatus.textContent = 'Sistema offline';
+                appStatus.style.color = '#f44336';
+            }
+        }
+        
+        // ============================================
+        // FUNÇÃO PRINCIPAL DE CADASTRO
+        // ============================================
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const email = emailInput.value.trim();
             
+            // Validação básica
             if (!email.includes('@') || !email.includes('.')) {
                 mostrarMensagem('Digite um email válido.', 'erro');
+                addLog(`Validação falhou: email inválido "${email}"`, 'warning');
                 return;
             }
             
+            // Limpa mensagens anteriores
             mensagemDiv.style.display = 'none';
+            
+            // Mostra loading
             btnCadastrar.disabled = true;
-            textoBotao.textContent = 'Processando...';
+            textoBotao.textContent = 'Enviando...';
             carregando.style.display = 'inline-block';
             
+            // Log da tentativa
+            addLog(`Iniciando cadastro para: ${email}`);
+            addLog(`URL destino: ${window.location.origin}/cadastrar`);
+            
             try {
+                // Configura timeout de 30 segundos
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    addLog('⏰ Timeout após 30 segundos', 'error');
+                }, 30000);
+                
+                // Faz a requisição
+                addLog('Enviando requisição POST...');
+                const startTime = Date.now();
+                
                 const resposta = await fetch('/cadastrar', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ email: email })
+                    body: JSON.stringify({ email: email }),
+                    signal: controller.signal
                 });
                 
+                clearTimeout(timeoutId);
+                const endTime = Date.now();
+                const tempoResposta = endTime - startTime;
+                
+                addLog(`Resposta recebida em ${tempoResposta}ms`);
+                addLog(`Status HTTP: ${resposta.status} ${resposta.statusText}`);
+                
+                // Verifica tipo de conteúdo
+                const contentType = resposta.headers.get('content-type');
+                addLog(`Content-Type: ${contentType}`);
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await resposta.text();
+                    addLog(`Resposta não é JSON: ${text.substring(0, 200)}`, 'error');
+                    throw new Error(`Servidor retornou ${contentType}, não JSON`);
+                }
+                
+                // Processa resposta JSON
                 const dados = await resposta.json();
+                addLog(`Resposta JSON: ${JSON.stringify(dados)}`);
                 
                 if (dados.sucesso) {
                     mostrarMensagem(dados.mensagem, 'sucesso');
@@ -214,21 +401,79 @@
                             window.location.href = '/login';
                         }, 5000);
                     }, 2000);
+                    
                 } else {
                     mostrarMensagem(dados.mensagem, 'erro');
+                    addLog(`Cadastro falhou: ${dados.mensagem}`, 'error');
                 }
                 
             } catch (erro) {
-                mostrarMensagem('Erro de conexão. Tente novamente.', 'erro');
+                // Tratamento detalhado de erros
+                addLog(`❌ ERRO COMPLETO: ${erro.name} - ${erro.message}`, 'error');
+                
+                if (erro.name === 'AbortError') {
+                    mostrarMensagem('Timeout: Servidor demorou muito para responder. Tente novamente.', 'erro');
+                } else if (erro.name === 'TypeError' && erro.message.includes('Failed to fetch')) {
+                    mostrarMensagem('Não foi possível conectar ao servidor. Verifique sua conexão.', 'erro');
+                } else if (erro.name === 'SyntaxError') {
+                    mostrarMensagem('Erro no formato da resposta do servidor.', 'erro');
+                } else {
+                    mostrarMensagem(`Erro: ${erro.message}`, 'erro');
+                }
+                
+                // Mostra painel de debug em caso de erro
+                debugPanel.style.display = 'block';
+                
             } finally {
+                // Restaura botão
                 btnCadastrar.disabled = false;
                 textoBotao.textContent = 'Cadastrar';
                 carregando.style.display = 'none';
             }
         });
         
+        // ============================================
+        // TESTE MANUAL VIA CONSOLE
+        // ============================================
+        window.testeCadastro = async function(emailTeste = 'teste@exemplo.com') {
+            addLog(`Teste manual iniciado para: ${emailTeste}`);
+            
+            try {
+                const resposta = await fetch('/cadastrar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: emailTeste})
+                });
+                
+                const dados = await resposta.json();
+                addLog(`Teste retornou: ${JSON.stringify(dados)}`);
+                console.log('Resultado do teste:', dados);
+                return dados;
+                
+            } catch (erro) {
+                addLog(`Teste falhou: ${erro.message}`, 'error');
+                console.error('Teste falhou:', erro);
+                return {sucesso: false, erro: erro.message};
+            }
+        };
+        
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
         window.onload = function() {
+            addLog('Página carregada');
+            addLog(`URL atual: ${window.location.href}`);
+            addLog(`Hostname: ${window.location.hostname}`);
+            
             emailInput.focus();
+            
+            // Verifica sistema após 1 segundo
+            setTimeout(verificarSistema, 1000);
+            
+            // Mostra como testar via console
+            console.log('=== SISTEMA DE CADASTRO ===');
+            console.log('Para testar manualmente, use: testeCadastro("seu@email.com")');
+            console.log('Logs detalhados no painel de debug da página');
         };
     </script>
 </body>
