@@ -831,6 +831,10 @@ def logout():
     session.clear()
     return redirect('/')
 
+
+
+# ... (todo o código anterior permanece igual até a linha ~840)
+
 # ============================================
 # ROTAS DE TESTE E DIAGNÓSTICO
 # ============================================
@@ -839,4 +843,293 @@ def logout():
 def test_email():
     """Teste básico de email"""
     try:
-        return "✅ Teste
+        return "✅ Teste de e-mail executado - verifique logs"
+    except Exception as e:
+        return f"❌ Erro: {str(e)}"
+
+@app.route('/health')
+def health_check():
+    """Health check para Render"""
+    conn = get_connection()
+    db_status = 'connected' if conn else 'disconnected'
+    if conn:
+        return_connection(conn)
+    
+    return jsonify({
+        'status': 'healthy',
+        'database': db_status,
+        'service': 'envia-senha-email',
+        'timestamp': 'online'
+    })
+
+@app.route('/teste-cadastro')
+def teste_cadastro():
+    """Página de teste do cadastro"""
+    return '''
+    <html>
+    <body style="font-family: Arial; padding: 20px;">
+        <h1>🧪 Teste de Cadastro</h1>
+        
+        <h2>Teste 1: Form HTML tradicional</h2>
+        <form id="form1">
+            <input type="email" name="email" placeholder="Email" required>
+            <button type="submit">Enviar (Form Data)</button>
+        </form>
+        
+        <h2>Teste 2: Fetch JSON</h2>
+        <button onclick="testeJSON()">Testar com JSON (teste@teste.com)</button>
+        
+        <h2>Teste 3: Email customizado</h2>
+        <input type="email" id="emailCustom" placeholder="Digite um email">
+        <button onclick="testeCustom()">Testar este email</button>
+        
+        <div id="resultado" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;"></div>
+        
+        <script>
+            // Teste 1: Form tradicional
+            document.getElementById('form1').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                
+                const response = await fetch('/cadastrar', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.getElementById('resultado').innerHTML = 
+                    `<h3>Resultado:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
+            });
+            
+            // Teste 2: Fetch JSON
+            async function testeJSON() {
+                const response = await fetch('/cadastrar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: 'teste@teste.com'})
+                });
+                
+                const result = await response.json();
+                document.getElementById('resultado').innerHTML = 
+                    `<h3>Resultado:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
+            }
+            
+            // Teste 3: Email customizado
+            async function testeCustom() {
+                const email = document.getElementById('emailCustom').value;
+                if (!email) {
+                    alert('Digite um email');
+                    return;
+                }
+                
+                const response = await fetch('/cadastrar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: email})
+                });
+                
+                const result = await response.json();
+                document.getElementById('resultado').innerHTML = 
+                    `<h3>Resultado para ${email}:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
+            }
+        </script>
+    </body>
+    </html>
+    '''
+
+@app.route('/debug')
+def debug():
+    """Página de debug"""
+    import sys, os
+    
+    # Verificar se variáveis SMTP existem
+    smtp_loaded = 'SMTP_HOST' in locals() or 'SMTP_HOST' in globals()
+    
+    return f"""
+    <html>
+    <body style="font-family: Arial; padding: 20px;">
+        <h1>🔧 Debug do Sistema</h1>
+        
+        <h2>Informações do Sistema</h2>
+        <p><strong>Python:</strong> {sys.version}</p>
+        <p><strong>Diretório:</strong> {os.getcwd()}</p>
+        <p><strong>Arquivos:</strong> {', '.join(sorted(os.listdir('.')))}</p>
+        
+        <h2>📧 Configurações de E-mail (CRÍTICO)</h2>
+        <p><strong>ENABLE_EMAILS:</strong> {'✅ TRUE' if ENABLE_EMAILS else '❌ FALSE'}</p>
+        <p><strong>RESEND_API_KEY:</strong> {'✅ Definida' if RESEND_API_KEY else '❌ Não definida'}</p>
+        <p><strong>SMTP Carregado:</strong> {'✅ SIM' if smtp_loaded else '❌ NÃO'}</p>
+        <p><strong>SMTP_USER:</strong> {'✅ ' + SMTP_USER if smtp_loaded and SMTP_USER else '❌ Não carregado'}</p>
+        <p><strong>SMTP_HOST:</strong> {'✅ ' + SMTP_HOST if SMTP_HOST and SMTP_HOST != 'smtp.gmail.com' else '❌ Usando default'}</p>
+        
+        <h2>⚙️ Outras Configurações</h2>
+        <p><strong>DATABASE_URL:</strong> {'✅ Definida' if DATABASE_URL else '❌ Não definida'}</p>
+        <p><strong>RENDER_EXTERNAL_URL:</strong> {RENDER_EXTERNAL_URL}</p>
+        
+        <h2>🧪 Testes Específicos de E-mail</h2>
+        <ul>
+            <li><a href="/test-email-resend">🎯 Teste Resend</a></li>
+            <li><a href="/test-email-direct">📧 Teste Direto</a></li>
+            <li><a href="/cadastro-simples">👤 Cadastro Simples</a></li>
+        </ul>
+        
+        <h2>🔍 Outros Testes</h2>
+        <ul>
+            <li><a href="/health">🩺 Health Check</a></li>
+            <li><a href="/">🏠 Página Principal</a></li>
+            <li><a href="/login">🔐 Página de Login</a></li>
+        </ul>
+        
+        <h3>🚨 Logs Imediatos (console)</h3>
+        <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
+            <i>Verifique os logs no Console do Render para mensagens de erro</i>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route('/test-email-direct')
+def test_email_direct():
+    """Teste DIRETO de envio de email (sem formulário)"""
+    
+    print(f"\n{'='*60}")
+    print("🧪 TESTE DIRETO DE E-MAIL INICIADO")
+    print(f"{'='*60}")
+    
+    resultado = enviar_email(
+        destinatario="brunorochasenacal01@gmail.com",  # Seu email
+        assunto="🎯 TESTE DIRETO do Sistema",
+        corpo_html=f"""
+        <h2>Teste Direto de E-mail</h2>
+        <p>Se você recebeu esta mensagem, o sistema de e-mails está funcionando!</p>
+        <p><strong>Data:</strong> {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>
+        <p><strong>Status:</strong> ✅ Sucesso</p>
+        """
+    )
+    
+    if resultado:
+        return """
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: green;">✅ Teste Iniciado!</h1>
+            <p>O e-mail foi enviado. Verifique:</p>
+            <ol style="text-align: left; max-width: 500px; margin: 20px auto;">
+                <li>Sua caixa de entrada</li>
+                <li>Pasta de spam/lixo eletrônico</li>
+                <li>Console do Render para logs detalhados</li>
+            </ol>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+    else:
+        return """
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: red;">❌ Falha no Teste</h1>
+            <p>Verifique os logs no Console do Render para ver o erro exato.</p>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+
+@app.route('/test-email-resend')
+def test_email_resend():
+    """Teste específico do Resend"""
+    
+    if not RESEND_API_KEY:
+        return '''
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: red;">❌ RESEND_API_KEY não configurada</h1>
+            <p>Configure a variável RESEND_API_KEY no Render Dashboard</p>
+            <p><a href="/debug">🔧 Ver configurações</a></p>
+        </div>
+        '''
+    
+    try:
+        # Teste DIRETO com Resend
+        params = {
+            "from": "Teste <onboarding@resend.dev>",
+            "to": "brunorochasenacal01@gmail.com",
+            "subject": "✅ Teste Resend - Sistema Funcionando",
+            "html": f"""
+            <h1>🎉 Teste Bem-Sucedido!</h1>
+            <p>Se você está lendo esta mensagem, o <strong>Resend está integrado</strong> no seu sistema!</p>
+            <p><strong>Data:</strong> {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>
+            <p><strong>Aplicação:</strong> Sistema de Cadastro</p>
+            <hr>
+            <p><small>Email enviado via Resend API</small></p>
+            """
+        }
+        
+        response = resend.Emails.send(params)
+        
+        return f"""
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: green;">✅ Teste Resend Enviado!</h1>
+            <p>ID do email: <code>{response['id']}</code></p>
+            <p>Verifique sua caixa de entrada em alguns segundos.</p>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+        
+    except Exception as e:
+        return f"""
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: red;">❌ Erro no Resend</h1>
+            <p>{str(e)}</p>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+
+# ============================================
+# FUNÇÃO DE TESTE DE CONEXÃO SMTP
+# ============================================
+
+def testar_conexao_smtp():
+    """Testa conexão básica com SMTP"""
+    try:
+        import socket
+        print(f"\n🔍 TESTANDO CONEXÃO COM {SMTP_HOST}:{SMTP_PORT}")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        resultado = sock.connect_ex((SMTP_HOST, SMTP_PORT))
+        sock.close()
+        
+        if resultado == 0:
+            print(f"✅ Porta {SMTP_PORT} aberta em {SMTP_HOST}")
+            return True
+        else:
+            print(f"❌ Não foi possível conectar a {SMTP_HOST}:{SMTP_PORT}")
+            print(f"💡 O Render Free Tier pode bloquear conexões SMTP")
+            return False
+    except Exception as e:
+        print(f"❌ Erro no teste: {e}")
+        return False
+
+# Executar teste se ENABLE_EMAILS for True
+if ENABLE_EMAILS and SMTP_HOST and SMTP_PORT:
+    testar_conexao_smtp()
+
+# ============================================
+# INICIALIZAÇÃO
+# ============================================
+
+if __name__ == '__main__':
+    # Inicializar pool de conexões
+    init_connection_pool()
+    
+    # Verificar conexão com Neon
+    if verificar_conexao_neon():
+        print("\n" + "="*60)
+        print("✅ SISTEMA PRONTO PARA CLOUD")
+        print("="*60)
+        print(f"🌐 URL: {RENDER_EXTERNAL_URL}")
+        print(f"🔗 Health Check: {RENDER_EXTERNAL_URL}/health")
+        print(f"🔧 Debug: {RENDER_EXTERNAL_URL}/debug")
+        
+        # No Render, use a porta fornecida pelo ambiente
+        port = int(os.getenv('PORT', 5000))
+        app.run(host='0.0.0.0', port=port, debug=False)
+    else:
+        print("\n❌ Não foi possível conectar ao Neon")
+        print("💡 Verifique:")
+        print("   1. DATABASE_URL no .env ou variáveis de ambiente")
+        print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
+        print("   3. Internet está funcionando")
