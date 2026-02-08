@@ -436,48 +436,73 @@ def before_request():
 # ROTAS PÚBLICAS
 # ============================================
 
+
+
+
+
+
+
+
+
 @app.route('/')
 def index():
-    """Página inicial SIMPLES sem JavaScript complexo"""
-    return '''
+    """Página inicial completa"""
+    return f'''
     <!DOCTYPE html>
     <html>
     <head>
         <title>Sistema de Cadastro</title>
         <style>
-            body { font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto; }
-            .menu { margin: 20px 0; }
-            .menu a { display: inline-block; margin: 5px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
-            .menu a:hover { background: #0056b3; }
+            body {{ font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; line-height: 1.6; }}
+            h1 {{ color: #333; }}
+            .menu {{ margin: 30px 0; }}
+            .btn {{ display: inline-block; padding: 12px 24px; margin: 8px; background: #007bff; color: white; 
+                    text-decoration: none; border-radius: 5px; font-weight: bold; }}
+            .btn:hover {{ background: #0056b3; }}
+            .info-box {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #007bff; }}
         </style>
     </head>
     <body>
         <h1>🚀 Sistema de Cadastro Cloud</h1>
+        <p>Sistema completo com cadastro, login e envio de emails.</p>
         
         <div class="menu">
-            <h2>📋 Menu Principal:</h2>
-            <a href="/cadastro-simples">📝 Cadastro Simples</a>
-            <a href="/cadastrar">📋 Cadastro Completo</a>
-            <a href="/login">🔐 Login</a>
-            <a href="/debug">🔧 Debug</a>
+            <h2>📋 Menu Principal</h2>
+            <a class="btn" href="/cadastro-simples">📝 Cadastro Simples</a>
+            <a class="btn" href="/login">🔐 Login</a>
+            <a class="btn" href="/debug">🔧 Debug</a>
         </div>
         
         <div class="menu">
-            <h2>🧪 Testes:</h2>
-            <a href="/test-email-resend">📧 Teste Resend</a>
-            <a href="/test-email-direct">📨 Teste Email Direto</a>
-            <a href="/health">🩺 Health Check</a>
+            <h2>🧪 Testes Rápidos</h2>
+            <a class="btn" href="/test-email-resend" style="background: #28a745;">📧 Teste Resend</a>
+            <a class="btn" href="/health" style="background: #6c757d;">🩺 Health Check</a>
         </div>
         
-        <div style="margin-top: 30px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
-            <h3>ℹ️ Sistema Online</h3>
-            <p><strong>URL:</strong> <a href="{RENDER_EXTERNAL_URL}">{RENDER_EXTERNAL_URL}</a></p>
-            <p><strong>Status:</strong> ✅ Operacional</p>
-            <p><small>Render + Neon + Resend</small></p>
+        <div class="info-box">
+            <h3>ℹ️ Informações do Sistema</h3>
+            <p><strong>URL:</strong> {RENDER_EXTERNAL_URL}</p>
+            <p><strong>Status:</strong> <span style="color: green;">✅ Online</span></p>
+            <p><strong>Tecnologias:</strong> Render + Neon + Resend</p>
         </div>
     </body>
     </html>
-    '''.format(RENDER_EXTERNAL_URL=RENDER_EXTERNAL_URL)
+    '''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route('/cadastro-simples', methods=['GET', 'POST'])
 def cadastro_simples():
@@ -694,6 +719,24 @@ def cadastro_simples():
             <p><a href="/cadastro-simples">← Tentar novamente</a></p>
         </div>
         ''', 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
 
 @app.route('/cadastrar', methods=['GET', 'POST'])
 def cadastrar():
@@ -1133,3 +1176,4 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
