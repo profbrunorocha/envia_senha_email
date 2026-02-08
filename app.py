@@ -317,46 +317,6 @@ def enviar_email(destinatario, assunto, corpo_html):
         print("   2. SMTP_USER e SMTP_PASS")
         return False
 
-
-
-@app.route('/teste-cadastro-rapido', methods=['GET', 'POST'])
-def teste_cadastro_rapido():
-    """Teste ULTRA SIMPLES sem banco de dados"""
-    
-    if request.method == 'GET':
-        return '''
-        <html>
-        <body style="padding: 20px;">
-            <h1>🧪 Teste Rápido</h1>
-            <form method="POST">
-                <input type="text" name="nome" placeholder="Nome">
-                <input type="email" name="email" placeholder="Email">
-                <button>Testar</button>
-            </form>
-        </body>
-        </html>
-        '''
-    
-    # Processar
-    nome = request.form.get('nome', 'Teste')
-    email = request.form.get('email', 'teste@teste.com')
-    
-    # Retornar resposta SIMPLES garantida
-    return f'''
-    <html>
-    <body style="padding: 20px;">
-        <h1>✅ TESTE OK!</h1>
-        <p>Nome: {nome}</p>
-        <p>Email: {email}</p>
-        <p>Senha: TESTE123</p>
-        <p><a href="/">Voltar</a></p>
-    </body>
-    </html>
-    '''
-
-
-
-
 # ============================================
 # FUNÇÕES DE BANCO DE DADOS
 # ============================================
@@ -367,6 +327,7 @@ def email_existe(email):
     
     conn = get_connection()
     if not conn:
+        print("❌ email_existe: Não conseguiu conexão")
         return False
     
     try:
@@ -386,6 +347,7 @@ def salvar_usuario(nome, email, senha):
     """Salva novo usuário - Cloud"""
     conn = get_connection()
     if not conn:
+        print("❌ salvar_usuario: Não conseguiu conexão")
         return None
     
     try:
@@ -401,14 +363,15 @@ def salvar_usuario(nome, email, senha):
         if resultado:
             user_id = resultado[0]
             conn.commit()
-            cursor.close()
-            return_connection(conn)
-            return user_id
+            print(f"✅ salvar_usuario: Usuário salvo com ID: {user_id}")
         else:
             conn.rollback()
-            cursor.close()
-            return_connection(conn)
-            return None
+            print("❌ salvar_usuario: Nenhum resultado retornado")
+            
+        cursor.close()
+        return_connection(conn)
+        
+        return user_id if resultado else None
             
     except Exception as e:
         print(f"❌ Erro salvar_usuario: {e}")
@@ -476,79 +439,58 @@ def before_request():
 # ROTAS PÚBLICAS
 # ============================================
 
-
-
-
-
-
-
-
-
 @app.route('/')
 def index():
-    """Página inicial completa"""
-    return f'''
+    """Página inicial SIMPLES"""
+    return '''
     <!DOCTYPE html>
     <html>
     <head>
         <title>Sistema de Cadastro</title>
         <style>
-            body {{ font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; line-height: 1.6; }}
-            h1 {{ color: #333; }}
-            .menu {{ margin: 30px 0; }}
-            .btn {{ display: inline-block; padding: 12px 24px; margin: 8px; background: #007bff; color: white; 
-                    text-decoration: none; border-radius: 5px; font-weight: bold; }}
-            .btn:hover {{ background: #0056b3; }}
-            .info-box {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #007bff; }}
+            body { font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto; }
+            .menu { margin: 20px 0; }
+            .menu a { display: inline-block; margin: 5px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+            .menu a:hover { background: #0056b3; }
+            .info-box { margin-top: 30px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
         </style>
     </head>
     <body>
         <h1>🚀 Sistema de Cadastro Cloud</h1>
-        <p>Sistema completo com cadastro, login e envio de emails.</p>
         
         <div class="menu">
-            <h2>📋 Menu Principal</h2>
-            <a class="btn" href="/cadastro-simples">📝 Cadastro Simples</a>
-            <a class="btn" href="/login">🔐 Login</a>
-            <a class="btn" href="/debug">🔧 Debug</a>
+            <h2>📋 Menu Principal:</h2>
+            <a href="/cadastro-simples">📝 Cadastro Simples</a>
+            <a href="/login">🔐 Login</a>
+            <a href="/debug">🔧 Debug</a>
         </div>
         
         <div class="menu">
-            <h2>🧪 Testes Rápidos</h2>
-            <a class="btn" href="/test-email-resend" style="background: #28a745;">📧 Teste Resend</a>
-            <a class="btn" href="/health" style="background: #6c757d;">🩺 Health Check</a>
+            <h2>🧪 Testes:</h2>
+            <a href="/test-email-resend">📧 Teste Resend</a>
+            <a href="/health">🩺 Health Check</a>
         </div>
         
         <div class="info-box">
-            <h3>ℹ️ Informações do Sistema</h3>
-            <p><strong>URL:</strong> {RENDER_EXTERNAL_URL}</p>
-            <p><strong>Status:</strong> <span style="color: green;">✅ Online</span></p>
-            <p><strong>Tecnologias:</strong> Render + Neon + Resend</p>
+            <h3>ℹ️ Sistema Online</h3>
+            <p><strong>URL:</strong> ''' + RENDER_EXTERNAL_URL + '''</p>
+            <p><strong>Status:</strong> ✅ Operacional</p>
+            <p><small>Render + Neon + Resend</small></p>
         </div>
     </body>
     </html>
     '''
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @app.route('/cadastro-simples', methods=['GET', 'POST'])
 def cadastro_simples():
     """Rota SIMPLES de cadastro que sempre funciona"""
     
+    print(f"\n{'='*60}")
+    print(f"🔍 ACESSANDO /cadastro-simples - Método: {request.method}")
+    print(f"{'='*60}")
+    
     if request.method == 'GET':
+        print("📄 Retornando formulário GET")
         return '''
         <!DOCTYPE html>
         <html>
@@ -560,8 +502,6 @@ def cadastro_simples():
                 input { border: 1px solid #ddd; border-radius: 5px; }
                 button { background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
                 button:hover { background: #218838; }
-                .success { color: green; padding: 10px; background: #d4edda; border-radius: 5px; }
-                .error { color: red; padding: 10px; background: #f8d7da; border-radius: 5px; }
             </style>
         </head>
         <body>
@@ -586,13 +526,11 @@ def cadastro_simples():
     nome = request.form.get('nome', '').strip()
     email = request.form.get('email', '').strip().lower()
     
-    print(f"\n{'='*60}")
-    print(f"🚀 CADASTRO SIMPLES INICIADO")
-    print(f"{'='*60}")
-    print(f"📝 Dados: {nome} - {email}")
+    print(f"📝 Dados recebidos (POST): nome='{nome}', email='{email}'")
     
     # Validar dados
     if not nome or not email:
+        print("❌ Dados incompletos")
         return '''
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: red;">❌ Erro</h1>
@@ -602,6 +540,7 @@ def cadastro_simples():
         ''', 400
     
     if not validar_email(email):
+        print(f"❌ Email inválido: {email}")
         return f'''
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: red;">❌ Email Inválido</h1>
@@ -612,6 +551,7 @@ def cadastro_simples():
     
     # Verificar se email já existe
     if email_existe(email):
+        print(f"❌ Email já existe: {email}")
         return f'''
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: orange;">⚠️ Email já cadastrado</h1>
@@ -622,14 +562,15 @@ def cadastro_simples():
     
     # Gerar senha aleatória
     senha_gerada = gerar_senha_aleatoria(12)
-    
     print(f"🔑 Senha gerada: {senha_gerada}")
     
     try:
         # 1. INSERIR NO BANCO (NeonDB)
+        print("💾 Tentando salvar no banco...")
         usuario_id = salvar_usuario(nome, email, senha_gerada)
         
         if not usuario_id:
+            print("❌ Falha ao salvar no banco")
             return '''
             <div style="text-align: center; padding: 50px;">
                 <h1 style="color: red;">❌ Erro no Banco</h1>
@@ -643,145 +584,93 @@ def cadastro_simples():
         # 2. ENVIAR EMAIL (com Resend ou SMTP)
         email_enviado = False
         if ENABLE_EMAILS:
-            print(f"📧 Enviando email para: {email}")
+            print(f"📧 Tentando enviar email para: {email}")
             
             sucesso = enviar_email(
                 destinatario=email,
                 assunto=f"🎉 Cadastro Realizado - {nome}",
                 corpo_html=f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        .header {{ background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
-                        .content {{ padding: 30px; background: #f9f9f9; border-radius: 0 0 10px 10px; }}
-                        .senha {{ font-family: monospace; font-size: 20px; background: #eee; padding: 10px; border-radius: 5px; margin: 10px 0; }}
-                        .warning {{ background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107; margin: 20px 0; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>🎉 Cadastro Realizado com Sucesso!</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Olá, {nome}!</h2>
-                        <p>Seu cadastro foi realizado com sucesso em nosso sistema.</p>
-                        
-                        <h3>📋 Seus Dados de Acesso:</h3>
-                        <p><strong>Email:</strong> {email}</p>
-                        <p><strong>Senha:</strong> <span class="senha">{senha_gerada}</span></p>
-                        
-                        <p><strong>🔗 Acesse o sistema:</strong> <a href="{RENDER_EXTERNAL_URL}/login">{RENDER_EXTERNAL_URL}/login</a></p>
-                        
-                        <div class="warning">
-                            <p>⚠️ <strong>Importante:</strong> Guarde esta senha com segurança.</p>
-                            <p>Recomendamos alterá-la após o primeiro acesso.</p>
-                        </div>
-                        
-                        <p style="margin-top: 30px; font-size: 12px; color: #666;">
-                            ID do cadastro: {usuario_id} | Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}
-                        </p>
-                    </div>
-                </body>
-                </html>
+                <h2>Olá, {nome}!</h2>
+                <p>Seu cadastro foi realizado com sucesso.</p>
+                <p><strong>Senha:</strong> {senha_gerada}</p>
+                <p>Acesse: {RENDER_EXTERNAL_URL}/login</p>
                 """
             )
             
             if sucesso:
                 email_enviado = True
-                print("✅ Email de confirmação enviado com sucesso!")
+                print("✅ Email enviado com sucesso!")
             else:
                 print("⚠️ Falha no envio do email")
         else:
             print("⚠️ ENABLE_EMAILS=false - Email não enviado")
         
-        # 3. RETORNAR RESPOSTA HTML
-        return f'''
+        # 3. RETORNAR RESPOSTA HTML SIMPLES (GARANTIDO)
+        print("📄 Retornando página de sucesso...")
+        response_html = f'''
         <!DOCTYPE html>
         <html>
         <head>
             <title>Cadastro Concluído</title>
+            <meta charset="UTF-8">
             <style>
-                body {{ font-family: Arial; max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .success-box {{ background: #d4edda; color: #155724; padding: 30px; border-radius: 10px; margin: 20px 0; text-align: center; }}
-                .info-box {{ background: #e7f3ff; padding: 25px; border-radius: 10px; margin: 20px 0; }}
-                .senha {{ font-family: monospace; font-size: 24px; font-weight: bold; color: #dc3545; background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }}
-                .btn {{ display: inline-block; padding: 12px 25px; margin: 10px; text-decoration: none; border-radius: 5px; font-weight: bold; }}
-                .btn-primary {{ background: #28a745; color: white; }}
-                .btn-secondary {{ background: #6c757d; color: white; }}
-                .email-status {{ padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                .email-success {{ background: #d4edda; color: #155724; }}
-                .email-warning {{ background: #fff3cd; color: #856404; }}
+                body {{ font-family: Arial; padding: 40px; text-align: center; }}
+                h1 {{ color: green; }}
+                .senha {{ font-size: 20px; font-weight: bold; color: red; background: #f0f0f0; padding: 10px; margin: 20px; display: inline-block; }}
             </style>
         </head>
         <body>
-            <div class="success-box">
-                <h1 style="margin: 0;">✅ Cadastro Concluído!</h1>
-                <p style="font-size: 18px;">Parabéns, <strong>{nome}</strong>!</p>
-            </div>
+            <h1>✅ CADASTRO CONCLUÍDO!</h1>
+            <h2>Parabéns, {nome}!</h2>
             
-            <div class="info-box">
-                <h2>📋 Seus Dados de Acesso:</h2>
+            <div style="max-width: 500px; margin: 0 auto; text-align: left; padding: 20px; background: #f9f9f9; border-radius: 10px;">
+                <h3>📋 Seus Dados:</h3>
+                <p><strong>Nome:</strong> {nome}</p>
+                <p><strong>Email:</strong> {email}</p>
                 <p><strong>ID do usuário:</strong> {usuario_id}</p>
-                <p><strong>Email cadastrado:</strong> {email}</p>
                 <p><strong>Sua senha:</strong></p>
                 <div class="senha">{senha_gerada}</div>
-                <p style="color: #666; font-size: 14px;">⚠️ Anote esta senha! Ela não será mostrada novamente.</p>
-            </div>
-            
-            <div class="email-status {'email-success' if email_enviado else 'email-warning'}">
+                <p style="color: red; font-size: 14px;">⚠️ ANOTE ESTA SENHA! Ela não será mostrada novamente.</p>
+                
+                <hr style="margin: 20px 0;">
+                
                 <h3>📧 Status do Email:</h3>
-                <p>{"✅ Email de confirmação enviado com sucesso!" if email_enviado else "⚠️ Cadastro realizado, mas email não enviado. Verifique a senha acima."}</p>
+                <p>{'✅ Email de confirmação enviado!' if email_enviado else '⚠️ Email não enviado (sistema em teste)'}</p>
             </div>
             
-            <div style="text-align: center; margin-top: 30px;">
-                <a href="/login" class="btn btn-primary">🔐 Fazer Login</a>
-                <a href="/" class="btn btn-secondary">🏠 Voltar ao Início</a>
+            <div style="margin-top: 30px;">
+                <a href="/login" style="padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 10px;">
+                    🔐 Fazer Login
+                </a>
+                <a href="/" style="padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin: 10px;">
+                    🏠 Voltar ao Início
+                </a>
             </div>
             
-            <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
-                ID: {usuario_id} | {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+            <p style="margin-top: 30px; color: #666; font-size: 12px;">
+                Sistema: {RENDER_EXTERNAL_URL} | ID: {usuario_id} | {datetime.now().strftime("%H:%M:%S")}
             </p>
         </body>
         </html>
         '''
         
+        print("✅ Página HTML gerada com sucesso")
+        return response_html
+        
     except Exception as e:
-        print(f"❌ Erro no cadastro: {e}")
+        print(f"❌ ERRO NO CADASTRO: {e}")
         import traceback
         traceback.print_exc()
         
-        return f'''
+        error_html = f'''
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: red;">❌ Erro no Cadastro</h1>
             <p>{str(e)}</p>
             <p><a href="/cadastro-simples">← Tentar novamente</a></p>
         </div>
-        ''', 500
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-@app.route('/cadastrar', methods=['GET', 'POST'])
-def cadastrar():
-    """Rota de cadastro original (mantida para compatibilidade)"""
-    return redirect('/cadastro-simples')
+        '''
+        print(f"📄 Retornando página de erro")
+        return error_html, 500
 
 @app.route('/login')
 def login():
@@ -825,6 +714,11 @@ def logar():
     except Exception as e:
         print(f"❌ Erro no login: {e}")
         return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
+
+@app.route('/cadastrar', methods=['GET', 'POST'])
+def cadastrar():
+    """Rota de cadastro original (mantida para compatibilidade)"""
+    return redirect('/cadastro-simples')
 
 # ============================================
 # ROTAS PROTEGIDAS (requerem login)
@@ -914,21 +808,9 @@ def logout():
     session.clear()
     return redirect('/')
 
-
-
-# ... (todo o código anterior permanece igual até a linha ~840)
-
 # ============================================
 # ROTAS DE TESTE E DIAGNÓSTICO
 # ============================================
-
-@app.route('/test-email')
-def test_email():
-    """Teste básico de email"""
-    try:
-        return "✅ Teste de e-mail executado - verifique logs"
-    except Exception as e:
-        return f"❌ Erro: {str(e)}"
 
 @app.route('/health')
 def health_check():
@@ -944,81 +826,6 @@ def health_check():
         'service': 'envia-senha-email',
         'timestamp': 'online'
     })
-
-@app.route('/teste-cadastro')
-def teste_cadastro():
-    """Página de teste do cadastro"""
-    return '''
-    <html>
-    <body style="font-family: Arial; padding: 20px;">
-        <h1>🧪 Teste de Cadastro</h1>
-        
-        <h2>Teste 1: Form HTML tradicional</h2>
-        <form id="form1">
-            <input type="email" name="email" placeholder="Email" required>
-            <button type="submit">Enviar (Form Data)</button>
-        </form>
-        
-        <h2>Teste 2: Fetch JSON</h2>
-        <button onclick="testeJSON()">Testar com JSON (teste@teste.com)</button>
-        
-        <h2>Teste 3: Email customizado</h2>
-        <input type="email" id="emailCustom" placeholder="Digite um email">
-        <button onclick="testeCustom()">Testar este email</button>
-        
-        <div id="resultado" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;"></div>
-        
-        <script>
-            // Teste 1: Form tradicional
-            document.getElementById('form1').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                
-                const response = await fetch('/cadastrar', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                document.getElementById('resultado').innerHTML = 
-                    `<h3>Resultado:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
-            });
-            
-            // Teste 2: Fetch JSON
-            async function testeJSON() {
-                const response = await fetch('/cadastrar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: 'teste@teste.com'})
-                });
-                
-                const result = await response.json();
-                document.getElementById('resultado').innerHTML = 
-                    `<h3>Resultado:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
-            }
-            
-            // Teste 3: Email customizado
-            async function testeCustom() {
-                const email = document.getElementById('emailCustom').value;
-                if (!email) {
-                    alert('Digite um email');
-                    return;
-                }
-                
-                const response = await fetch('/cadastrar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: email})
-                });
-                
-                const result = await response.json();
-                document.getElementById('resultado').innerHTML = 
-                    `<h3>Resultado para ${email}:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
-            }
-        </script>
-    </body>
-    </html>
-    '''
 
 @app.route('/debug')
 def debug():
@@ -1162,6 +969,84 @@ def test_email_resend():
         """
 
 # ============================================
+# ROTA DE TESTE BANCO (CRÍTICA)
+# ============================================
+
+@app.route('/teste-banco')
+def teste_banco():
+    """Testa APENAS o banco de dados"""
+    
+    print(f"\n🧪 TESTE BANCO INICIADO")
+    
+    try:
+        conn = get_connection()
+        if not conn:
+            return "❌ Não conectou ao banco", 500
+        
+        cursor = conn.cursor()
+        
+        # 1. Verificar se tabela existe
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'usuarios'
+            )
+        """)
+        tabela_existe = cursor.fetchone()[0]
+        
+        if not tabela_existe:
+            print("❌ Tabela 'usuarios' não existe")
+            cursor.close()
+            return_connection(conn)
+            return "❌ Tabela 'usuarios' não existe. Crie com o script SQL.", 500
+        
+        print(f"✅ Tabela 'usuarios' existe")
+        
+        # 2. Contar usuários
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        total = cursor.fetchone()[0]
+        print(f"✅ Total de usuários: {total}")
+        
+        # 3. Inserir usuário de teste
+        cursor.execute("""
+            INSERT INTO usuarios (nome, email, senha) 
+            VALUES ('Teste Banco', 'teste@banco.com', 'senha123')
+            ON CONFLICT (email) DO NOTHING
+            RETURNING id
+        """)
+        
+        resultado = cursor.fetchone()
+        if resultado:
+            conn.commit()
+            novo_id = resultado[0]
+            print(f"✅ Novo usuário inserido. ID: {novo_id}")
+        else:
+            conn.rollback()
+            print("✅ Usuário de teste já existe (ou conflito)")
+        
+        cursor.close()
+        return_connection(conn)
+        
+        return f'''
+        <html>
+        <body style="padding: 20px;">
+            <h1>✅ Banco OK!</h1>
+            <p>Tabela existe: SIM</p>
+            <p>Total de usuários: {total}</p>
+            <p>Teste concluído com sucesso!</p>
+            <p><a href="/">Voltar</a></p>
+        </body>
+        </html>
+        '''
+        
+    except Exception as e:
+        print(f"❌ ERRO no teste do banco: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"❌ Erro: {str(e)}", 500
+
+# ============================================
 # FUNÇÃO DE TESTE DE CONEXÃO SMTP
 # ============================================
 
@@ -1215,6 +1100,7 @@ if __name__ == '__main__':
         print("💡 Verifique:")
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
-        print("   3. Internet está funcionando")
+        print("   3. Internet está funcionando")print("   3. Internet está funcionando")
+
 
 
