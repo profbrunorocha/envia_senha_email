@@ -778,6 +778,33 @@ def test_email_direct():
 
 
 
+# TESTE DE CONEXÃO SMTP RÁPIDO
+def testar_conexao_smtp():
+    """Testa conexão básica com SMTP"""
+    try:
+        import socket
+        print(f"\n🔍 TESTANDO CONEXÃO COM {SMTP_HOST}:{SMTP_PORT}")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        resultado = sock.connect_ex((SMTP_HOST, SMTP_PORT))
+        sock.close()
+        
+        if resultado == 0:
+            print(f"✅ Porta {SMTP_PORT} aberta em {SMTP_HOST}")
+            return True
+        else:
+            print(f"❌ Não foi possível conectar a {SMTP_HOST}:{SMTP_PORT}")
+            print(f"💡 O Render Free Tier pode bloquear conexões SMTP")
+            return False
+    except Exception as e:
+        print(f"❌ Erro no teste: {e}")
+        return False
+
+# Executar teste se ENABLE_EMAILS for True
+if ENABLE_EMAILS:
+    testar_conexao_smtp()
+
+
 
 
 
@@ -807,6 +834,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
