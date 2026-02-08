@@ -668,10 +668,16 @@ def teste_cadastro():
     </html>
     '''
 
+
+
 @app.route('/debug')
 def debug():
     """Página de debug"""
     import sys, os
+    
+    # Verificar se variáveis SMTP existem
+    smtp_loaded = 'SMTP_HOST' in locals() or 'SMTP_HOST' in globals()
+    
     return f"""
     <html>
     <body style="font-family: Arial; padding: 20px;">
@@ -680,23 +686,91 @@ def debug():
         <h2>Informações do Sistema</h2>
         <p><strong>Python:</strong> {sys.version}</p>
         <p><strong>Diretório:</strong> {os.getcwd()}</p>
-        <p><strong>Arquivos:</strong> {', '.join(os.listdir('.'))}</p>
+        <p><strong>Arquivos:</strong> {', '.join(sorted(os.listdir('.')))}</p>
         
-        <h2>Configurações</h2>
+        <h2>📧 Configurações de E-mail (CRÍTICO)</h2>
+        <p><strong>ENABLE_EMAILS:</strong> {'✅ TRUE' if ENABLE_EMAILS else '❌ FALSE'}</p>
+        <p><strong>SMTP Carregado:</strong> {'✅ SIM' if smtp_loaded else '❌ NÃO'}</p>
+        <p><strong>SMTP_USER:</strong> {'✅ ' + SMTP_USER if smtp_loaded and SMTP_USER else '❌ Não carregado'}</p>
+        <p><strong>SMTP_HOST:</strong> {'✅ ' + SMTP_HOST if smtp_loaded and 'SMTP_HOST' in locals() else '❌ Não carregado'}</p>
+        
+        <h2>⚙️ Outras Configurações</h2>
         <p><strong>DATABASE_URL:</strong> {'✅ Definida' if DATABASE_URL else '❌ Não definida'}</p>
-        <p><strong>SMTP_USER:</strong> {'✅ Definida' if SMTP_USER else '❌ Não definida'}</p>
         <p><strong>RENDER_EXTERNAL_URL:</strong> {RENDER_EXTERNAL_URL}</p>
         
-        <h2>Testes</h2>
+        <h2>🧪 Testes Específicos de E-mail</h2>
         <ul>
-            <li><a href="/health">Health Check</a></li>
-            <li><a href="/teste-cadastro">Teste de Cadastro</a></li>
-            <li><a href="/">Página Principal</a></li>
-            <li><a href="/login">Página de Login</a></li>
+            <li><a href="/test-email-direct">🔗 Teste Direto de E-mail</a></li>
+            <li><a href="/debug-email">📧 Página Completa de Debug</a></li>
+            <li><a href="/teste-cadastro">👤 Teste de Cadastro (envia email)</a></li>
         </ul>
+        
+        <h2>🔍 Outros Testes</h2>
+        <ul>
+            <li><a href="/health">🩺 Health Check</a></li>
+            <li><a href="/">🏠 Página Principal</a></li>
+            <li><a href="/login">🔐 Página de Login</a></li>
+        </ul>
+        
+        <h3>🚨 Logs Imediatos (console)</h3>
+        <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
+            <i>Verifique os logs no Console do Render para mensagens de erro</i>
+        </div>
     </body>
     </html>
     """
+
+
+
+
+
+@app.route('/test-email-direct')
+def test_email_direct():
+    """Teste DIRETO de envio de email (sem formulário)"""
+    
+    print(f"\n{'='*60}")
+    print("🧪 TESTE DIRETO DE E-MAIL INICIADO")
+    print(f"{'='*60}")
+    
+    resultado = enviar_email(
+        destinatario="brunorochasenacal01@gmail.com",  # Seu email
+        assunto="🎯 TESTE DIRETO do Sistema",
+        corpo="""
+        <h2>Teste Direto de E-mail</h2>
+        <p>Se você recebeu esta mensagem, o sistema de e-mails está funcionando!</p>
+        <p><strong>Data:</strong> """ + datetime.now().strftime("%d/%m/%Y %H:%M:%S") + """</p>
+        <p><strong>Status:</strong> ✅ Sucesso</p>
+        """
+    )
+    
+    if resultado:
+        return """
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: green;">✅ Teste Iniciado!</h1>
+            <p>O e-mail foi enviado. Verifique:</p>
+            <ol style="text-align: left; max-width: 500px; margin: 20px auto;">
+                <li>Sua caixa de entrada</li>
+                <li>Pasta de spam/lixo eletrônico</li>
+                <li>Console do Render para logs detalhados</li>
+            </ol>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+    else:
+        return """
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: red;">❌ Falha no Teste</h1>
+            <p>Verifique os logs no Console do Render para ver o erro exato.</p>
+            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
+        </div>
+        """
+
+
+
+
+
+
+
 
 # ============================================
 # INICIALIZAÇÃO
@@ -724,6 +798,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
