@@ -317,6 +317,46 @@ def enviar_email(destinatario, assunto, corpo_html):
         print("   2. SMTP_USER e SMTP_PASS")
         return False
 
+
+
+@app.route('/teste-cadastro-rapido', methods=['GET', 'POST'])
+def teste_cadastro_rapido():
+    """Teste ULTRA SIMPLES sem banco de dados"""
+    
+    if request.method == 'GET':
+        return '''
+        <html>
+        <body style="padding: 20px;">
+            <h1>🧪 Teste Rápido</h1>
+            <form method="POST">
+                <input type="text" name="nome" placeholder="Nome">
+                <input type="email" name="email" placeholder="Email">
+                <button>Testar</button>
+            </form>
+        </body>
+        </html>
+        '''
+    
+    # Processar
+    nome = request.form.get('nome', 'Teste')
+    email = request.form.get('email', 'teste@teste.com')
+    
+    # Retornar resposta SIMPLES garantida
+    return f'''
+    <html>
+    <body style="padding: 20px;">
+        <h1>✅ TESTE OK!</h1>
+        <p>Nome: {nome}</p>
+        <p>Email: {email}</p>
+        <p>Senha: TESTE123</p>
+        <p><a href="/">Voltar</a></p>
+    </body>
+    </html>
+    '''
+
+
+
+
 # ============================================
 # FUNÇÕES DE BANCO DE DADOS
 # ============================================
@@ -1176,4 +1216,5 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
