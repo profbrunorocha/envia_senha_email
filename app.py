@@ -32,36 +32,45 @@ load_dotenv()  # Carrega variáveis do .env
 
 
 
+
+
 import os
 
-# ========== CONFIGURAÇÕES DO BANCO ==========
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://neondb_owner:npg_pLaUwI7O6iHC@ep-falling-tree-aiqb3bkq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
+# ========= CONFIGURAÇÕES DO BANCO =========
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://neondb_owner:npq_PlaAuI7O6iHC@ep-falling-tree-aibqbkg-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslMode=require&channel_binding=require')
 
-# ========== CONFIGURAÇÕES DO RENDER ==========
+# ========= CONFIGURAÇÕES DO RENDERER =========
 RENDER_EXTERNAL_URL = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:5000')
 
-# ========== CONFIGURAÇÕES DA APLICAÇÃO ==========
+# ========= CONFIGURAÇÕES DA APLICAÇÃO =========
 SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
 
-# ========== CONFIGURAÇÕES DE E-MAIL ==========
+# ========= CONFIGURAÇÕES DE E-MAIL =========
 ENABLE_EMAILS = os.getenv('ENABLE_EMAILS', 'false').lower() == 'true'
 
-# Configurações SMTP (só carrega se e-mail ativado)
+# ⭐⭐ SEMPRE definir as variáveis SMTP (mesmo se não usadas) ⭐⭐
+SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+SMTP_USER = os.getenv('SMTP_USER')
+SMTP_PASS = os.getenv('SMTP_PASS')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', SMTP_USER)
+
+# DEBUG: Mostrar status
+print(f"\n🔧 CONFIGURAÇÃO DE EMAIL:")
+print(f"   ENABLE_EMAILS: {ENABLE_EMAILS}")
+print(f"   SMTP_HOST: {SMTP_HOST}")
+print(f"   SMTP_USER: {SMTP_USER}")
+print(f"   SMTP_PASS: {'✅ Definida' if SMTP_PASS else '❌ Não definida'}")
+
+# Verificar se todas as credenciais estão presentes quando ENABLE_EMAILS=true
 if ENABLE_EMAILS:
-    SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-    SMTP_USER = os.getenv('SMTP_USER')
-    SMTP_PASS = os.getenv('SMTP_PASS')
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', SMTP_USER)
-    
-    # Verificar se todas as credenciais estão presentes
     if not all([SMTP_USER, SMTP_PASS]):
         print("⚠️ ATENÇÃO: SMTP_USER ou SMTP_PASS não configurados!")
         print("⚠️ E-mails NÃO serão enviados mesmo com ENABLE_EMAILS=true")
+    else:
+        print("✅ Credenciais SMTP configuradas corretamente")
 
-# ========== FIM DAS CONFIGURAÇÕES ==========
-# NADA MAIS AQUI - seu código continua com rotas, funções, etc.
-
+# ========= FIM DAS CONFIGURAÇÕES =========
 
 
 
@@ -692,7 +701,7 @@ def debug():
         <p><strong>ENABLE_EMAILS:</strong> {'✅ TRUE' if ENABLE_EMAILS else '❌ FALSE'}</p>
         <p><strong>SMTP Carregado:</strong> {'✅ SIM' if smtp_loaded else '❌ NÃO'}</p>
         <p><strong>SMTP_USER:</strong> {'✅ ' + SMTP_USER if smtp_loaded and SMTP_USER else '❌ Não carregado'}</p>
-        <p><strong>SMTP_HOST:</strong> {'✅ ' + SMTP_HOST if smtp_loaded and 'SMTP_HOST' in locals() else '❌ Não carregado'}</p>
+        <p><strong>SMTP_HOST:</strong> {'✅ ' + SMTP_HOST if SMTP_HOST and SMTP_HOST != 'smtp.gmail.com' else '❌ Usando default'}</p>
         
         <h2>⚙️ Outras Configurações</h2>
         <p><strong>DATABASE_URL:</strong> {'✅ Definida' if DATABASE_URL else '❌ Não definida'}</p>
@@ -798,6 +807,7 @@ if __name__ == '__main__':
         print("   1. DATABASE_URL no .env ou variáveis de ambiente")
         print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
         print("   3. Internet está funcionando")
+
 
 
 
