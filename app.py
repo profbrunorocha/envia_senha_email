@@ -1,213 +1,117 @@
 import os
 import secrets
 import string
-import random
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
-from datetime import datetime
-from sqlalchemy.pool import NullPool
-from threading import Thread
-from sqlalchemy.exc import SQLAlchemyError
-
-
-
 
 app = Flask(__name__)
 
-# ================== BANCO DE DADOS (NEON + RENDER) ==================
-
-database_url = os.environ.get('DATABASE_URL')
-
-if not database_url:
-    raise RuntimeError("DATABASE_URL não definida no ambiente!")
-
-# Remove aspas ou espaços que às vezes o Render adiciona sem querer
-database_url = database_url.strip().replace('"', '').replace("'", "")
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+# ================== CONFIG BANCO (NEON) ==================
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'poolclass': NullPool,   # ideal para Render/serverless
-    'pool_pre_ping': True,
-}
-
-# ================== EMAIL ==================
-
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
-app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
-
 
 db = SQLAlchemy(app)
+
+# ================== CONFIG EMAIL (BREVO SMTP) ==================
+app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv("MAIL_DEFAULT_SENDER")
+
 mail = Mail(app)
 
-# ================== MODELO ==================
-
+# ================== MODEL ==================
 class Usuario(db.Model):
-    __tablename__ = 'usuarios'
-    
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
     senha = db.Column(db.String(100), nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    
-    def __repr__(self):
-        return f'<Usuario {self.email}>'
+    data_cadastro = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-# ================== UTILIDADES ==================
-
-def gerar_senha(tamanho=12):
-    caracteres = string.ascii_letters + string.digits + string.punctuation
-    caracteres = caracteres.replace("'", "").replace('"', "").replace('\\', '')
+# ================== GERADOR DE SENHA ==================
+def gerar_senha(tamanho=10):
+    caracteres = string.ascii_letters + string.digits
     return ''.join(secrets.choice(caracteres) for _ in range(tamanho))
 
-
-
-
-
-
-def enviar_email_async(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-            print("EMAIL ENVIADO COM SUCESSO")
-        except Exception as e:
-            print("ERRO AO ENVIAR EMAIL:", e)
-
-
-
+# ================== ENVIO DE EMAIL ==================
 def enviar_email_boas_vindas(email, senha):
     try:
         msg = Message(
             subject='Bem-vindo! Seus dados de acesso',
-            recipients=[email],
-            sender=app.config.get("MAIL_USERNAME")  # importante!
+            recipients=[email]
         )
 
         msg.html = f"""
-        <html>
-        <body style="font-family:Arial;background:#f4f4f4;padding:20px">
+        <div style="font-family:Arial;background:#f4f4f4;padding:20px">
             <div style="max-width:600px;margin:auto;background:white;padding:20px;border-radius:10px">
-                <h2>🎉 Cadastro Realizado!</h2>
-                <p>Seu acesso foi criado com sucesso.</p>
+                <h2>🎉 Cadastro realizado!</h2>
+                <p>Sua conta foi criada com sucesso.</p>
                 <p><b>Email:</b> {email}</p>
                 <p><b>Senha:</b></p>
                 <div style="background:#eee;padding:10px;font-family:monospace">{senha}</div>
-                <p style="color:red">Recomendamos alterar sua senha no primeiro acesso.</p>
+                <p style="color:red">Altere sua senha no primeiro acesso.</p>
             </div>
-        </body>
-        </html>
+        </div>
         """
 
-        # 🚀 ENVIA SEM TRAVAR O SERVIDOR
-        Thread(target=enviar_email_async, args=(app, msg)).start()
-
+        mail.send(msg)
         return True
 
     except Exception as e:
-        print("❌ ERRO GERAL NA FUNÇÃO DE EMAIL:", e)
+        print("ERRO AO ENVIAR EMAIL:", e)
         return False
 
-
-
-
-
-
 # ================== ROTAS ==================
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-
-@app.route('/health')
-def health():
-    try:
-        db.session.execute(db.text('SELECT 1'))
-        return jsonify({'status': 'ok', 'database': 'connected'}), 200
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-
-
-
-
-
-
-
-def gerar_senha(tamanho=8):
-    caracteres = string.ascii_letters + string.digits
-    return ''.join(random.choice(caracteres) for _ in range(tamanho))
-
-
-
-
-
-@app.route('/cadastrar', methods=['POST'])
+@app.route("/cadastrar", methods=["POST"])
 def cadastrar():
-    data = request.get_json()
-    email = data.get('email')
+    try:
+        data = request.get_json()
+        email = data.get("email")
 
-    # gerar senha
-    senha = gerar_senha()
+        if not email:
+            return jsonify({"sucesso": False, "mensagem": "Email obrigatório"})
 
-    # salvar no banco
-    novo_usuario = Usuario(email=email, senha=senha)
-    db.session.add(novo_usuario)
-    db.session.commit()
+        # Verifica se já existe
+        usuario_existente = Usuario.query.filter_by(email=email).first()
+        if usuario_existente:
+            return jsonify({"sucesso": False, "mensagem": "Email já cadastrado"})
 
-    # montar email
-    msg = Message(
-        "Sua senha de acesso",
-        recipients=[email]
-    )
-    msg.body = f"Sua senha é: {senha}"
+        senha = gerar_senha()
 
-    # ENVIAR CERTO
-    Thread(target=enviar_email_async, args=(app, msg)).start()
+        novo_usuario = Usuario(email=email, senha=senha)
+        db.session.add(novo_usuario)
+        db.session.commit()
 
-    return jsonify({
-        "sucesso": True,
-        "mensagem": "Conta criada! Verifique seu email."
-    })
+        # Enviar email
+        enviado = enviar_email_boas_vindas(email, senha)
 
+        if not enviado:
+            return jsonify({
+                "sucesso": True,
+                "aviso": True,
+                "mensagem": "Conta criada, mas houve problema ao enviar o email."
+            })
 
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Conta criada! Verifique seu email."
+        })
 
+    except Exception as e:
+        print("ERRO NA ROTA:", e)
+        return jsonify({"sucesso": False, "mensagem": "Erro no servidor"})
 
-
-
-
-
-# ================== COMANDOS CLI ==================
-
-@app.cli.command()
-def init_db():
+# ================== RUN ==================
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        print("✅ Banco criado!")
-
-
-@app.cli.command()
-def test_db():
-    try:
-        db.session.execute(db.text('SELECT 1'))
-        print("✅ Conexão OK!")
-    except Exception as e:
-        print(f"❌ Erro: {e}")
-
-
-# ================== START ==================
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-
-
+    app.run(debug=True)
 
 
