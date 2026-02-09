@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from datetime import datetime
 from sqlalchemy.pool import NullPool
+from threading import Thread
 
 app = Flask(__name__)
 
@@ -34,6 +35,8 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
+
 
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -59,12 +62,28 @@ def gerar_senha(tamanho=12):
     return ''.join(secrets.choice(caracteres) for _ in range(tamanho))
 
 
+
+
+
+
+def enviar_email_async(app, msg):
+    """Envia o email em uma thread separada (não trava o servidor)."""
+    with app.app_context():
+        try:
+            mail.send(msg)
+            print("✅ Email enviado com sucesso")
+        except Exception as e:
+            print("❌ ERRO AO ENVIAR EMAIL:", e)
+
+
 def enviar_email_boas_vindas(email, senha):
     try:
         msg = Message(
             subject='Bem-vindo! Seus dados de acesso',
-            recipients=[email]
+            recipients=[email],
+            sender=app.config.get("MAIL_USERNAME")  # importante!
         )
+
         msg.html = f"""
         <html>
         <body style="font-family:Arial;background:#f4f4f4;padding:20px">
@@ -79,11 +98,20 @@ def enviar_email_boas_vindas(email, senha):
         </body>
         </html>
         """
-        mail.send(msg)
+
+        # 🚀 ENVIA SEM TRAVAR O SERVIDOR
+        Thread(target=enviar_email_async, args=(app, msg)).start()
+
         return True
+
     except Exception as e:
-        print(f"Erro ao enviar email: {e}")
+        print("❌ ERRO GERAL NA FUNÇÃO DE EMAIL:", e)
         return False
+
+
+
+
+
 
 # ================== ROTAS ==================
 
@@ -152,3 +180,4 @@ def test_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
