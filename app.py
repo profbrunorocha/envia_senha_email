@@ -147,43 +147,42 @@ def gerar_senha(tamanho=8):
     return ''.join(random.choice(caracteres) for _ in range(tamanho))
 
 
+
+
+
+
+
 @app.route("/cadastrar", methods=["POST"])
 def cadastrar():
     email = request.form.get("email")
 
     if not email:
-        return render_template("index.html", erro="Informe um email válido.")
+        return jsonify({"sucesso": False, "erro": "Email obrigatório"})
 
     try:
-        # 🔍 Verifica se já existe
-        usuario_existente = Usuario.query.filter_by(email=email).first()
-        if usuario_existente:
-            return render_template("index.html", erro="Email já cadastrado.")
+        # Verifica se já existe
+        if Usuario.query.filter_by(email=email).first():
+            return jsonify({"sucesso": False, "erro": "Email já cadastrado"})
 
-        # 🔐 Gera senha
+        # Gera senha
         senha = gerar_senha()
 
-        # 💾 Salva no banco
+        # Salva no banco
         novo_usuario = Usuario(email=email, senha=senha)
         db.session.add(novo_usuario)
         db.session.commit()
 
-        # 📧 Envia email (não trava servidor)
-        enviado = enviar_email_boas_vindas(email, senha)
+        # Envia email
+        if not enviar_email_boas_vindas(email, senha):
+            return jsonify({"sucesso": False, "erro": "Erro ao enviar email"})
 
-        if not enviado:
-            print("⚠️ Usuário criado, mas email não foi enviado.")
-
-        return render_template("index.html", sucesso="Conta criada! Verifique seu email.")
-
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print("❌ ERRO BANCO:", e)
-        return render_template("index.html", erro="Erro ao salvar no banco.")
+        return jsonify({"sucesso": True})
 
     except Exception as e:
-        print("❌ ERRO GERAL:", e)
-        return render_template("index.html", erro="Erro ao processar cadastro.")
+        db.session.rollback()
+        print("ERRO:", e)
+        return jsonify({"sucesso": False, "erro": "Erro interno"})
+
 
 
 
@@ -212,5 +211,6 @@ def test_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
