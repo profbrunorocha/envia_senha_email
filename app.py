@@ -1,12 +1,16 @@
 import os
 import secrets
 import string
+import random
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from datetime import datetime
 from sqlalchemy.pool import NullPool
 from threading import Thread
+from sqlalchemy.exc import SQLAlchemyError
+
+
 
 app = Flask(__name__)
 
@@ -129,32 +133,60 @@ def health():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-@app.route('/cadastrar', methods=['POST'])
+
+
+
+import random
+import string
+from flask import request, render_template
+from sqlalchemy.exc import SQLAlchemyError
+
+
+def gerar_senha(tamanho=8):
+    caracteres = string.ascii_letters + string.digits
+    return ''.join(random.choice(caracteres) for _ in range(tamanho))
+
+
+@app.route("/cadastrar", methods=["POST"])
 def cadastrar():
+    email = request.form.get("email")
+
+    if not email:
+        return render_template("index.html", erro="Informe um email válido.")
+
     try:
-        data = request.get_json()
-        email = data.get('email', '').strip().lower()
+        # 🔍 Verifica se já existe
+        usuario_existente = Usuario.query.filter_by(email=email).first()
+        if usuario_existente:
+            return render_template("index.html", erro="Email já cadastrado.")
 
-        if not email or '@' not in email or '.' not in email:
-            return jsonify({'sucesso': False, 'mensagem': 'Email inválido.'}), 400
+        # 🔐 Gera senha
+        senha = gerar_senha()
 
-        if Usuario.query.filter_by(email=email).first():
-            return jsonify({'sucesso': False, 'mensagem': 'Email já cadastrado.'}), 400
-
-        senha_gerada = gerar_senha()
-
-        novo_usuario = Usuario(email=email, senha=senha_gerada)
+        # 💾 Salva no banco
+        novo_usuario = Usuario(email=email, senha=senha)
         db.session.add(novo_usuario)
         db.session.commit()
 
-        enviar_email_boas_vindas(email, senha_gerada)
+        # 📧 Envia email (não trava servidor)
+        enviado = enviar_email_boas_vindas(email, senha)
 
-        return jsonify({'sucesso': True, 'mensagem': 'Cadastro realizado!'}), 201
+        if not enviado:
+            print("⚠️ Usuário criado, mas email não foi enviado.")
+
+        return render_template("index.html", sucesso="Conta criada! Verifique seu email.")
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print("❌ ERRO BANCO:", e)
+        return render_template("index.html", erro="Erro ao salvar no banco.")
 
     except Exception as e:
-        db.session.rollback()
-        print(f"Erro no cadastro: {e}")
-        return jsonify({'sucesso': False, 'mensagem': 'Erro no servidor.'}), 500
+        print("❌ ERRO GERAL:", e)
+        return render_template("index.html", erro="Erro ao processar cadastro.")
+
+
+
 
 
 # ================== COMANDOS CLI ==================
@@ -180,4 +212,5 @@ def test_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
