@@ -1,1106 +1,269 @@
-"""
-SISTEMA COMPLETO - VERSÃO CLOUD READY
-Para Render + Neon + Resend
-"""
-
 import os
-import random
+import secrets
 import string
-import re
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-import psycopg2
-from psycopg2.pool import SimpleConnectionPool
-from functools import wraps
-from dotenv import load_dotenv
-from flask_cors import CORS
+from flask import Flask, render_template, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
 from datetime import datetime
-
-print("=" * 60)
-print("🚀 SISTEMA COMPLETO - VERSÃO CLOUD")
-print("=" * 60)
-
-# ============================================
-# CONFIGURAÇÕES DE AMBIENTE
-# ============================================
-
-load_dotenv()  # Carrega variáveis do .env
-
-# Tentar importar Resend
-try:
-    import resend
-    RESEND_AVAILABLE = True
-except ImportError:
-    RESEND_AVAILABLE = False
-    print("⚠️ Biblioteca 'resend' não instalada")
-
-# ========= CONFIGURAÇÕES DO BANCO =========
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://neondb_owner:npq_PlaAuI7O6iHC@ep-falling-tree-aibqbkg-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslMode=require&channel_binding=require')
-
-# ========= CONFIGURAÇÕES DO RENDERER =========
-RENDER_EXTERNAL_URL = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:5000')
-
-# ========= CONFIGURAÇÕES DA APLICAÇÃO =========
-SECRET_KEY = os.getenv('SECRET_KEY', 'sistema-completo-seguro-cloud-2024')
-
-# ========= CONFIGURAÇÕES DE E-MAIL =========
-ENABLE_EMAILS = os.getenv('ENABLE_EMAILS', 'false').lower() == 'true'
-RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-
-# Configurar Resend se disponível
-if RESEND_API_KEY and RESEND_AVAILABLE:
-    resend.api_key = RESEND_API_KEY
-    print("✅ Resend configurado")
-elif ENABLE_EMAILS and not RESEND_API_KEY:
-    print("⚠️ Resend não configurado")
-
-# ⭐⭐ SEMPRE definir as variáveis SMTP (mesmo se não usadas) ⭐⭐
-SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-SMTP_USER = os.getenv('SMTP_USER')
-SMTP_PASS = os.getenv('SMTP_PASS')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', SMTP_USER)
-
-# DEBUG: Mostrar status
-print(f"\n🔧 CONFIGURAÇÃO DE EMAIL:")
-print(f"   ENABLE_EMAILS: {ENABLE_EMAILS}")
-print(f"   RESEND_API_KEY: {'✅ Definida' if RESEND_API_KEY else '❌ Não definida'}")
-print(f"   SMTP_HOST: {SMTP_HOST}")
-print(f"   SMTP_USER: {SMTP_USER}")
-print(f"   SMTP_PASS: {'✅ Definida' if SMTP_PASS else '❌ Não definida'}")
-
-# Verificar se todas as credenciais estão presentes quando ENABLE_EMAILS=true
-if ENABLE_EMAILS:
-    if not RESEND_API_KEY and not all([SMTP_USER, SMTP_PASS]):
-        print("⚠️ ATENÇÃO: Nenhum método de email configurado!")
-        print("   Configure RESEND_API_KEY ou SMTP_USER/SMTP_PASS")
-    elif RESEND_API_KEY:
-        print("✅ Resend configurado - emails serão enviados via Resend")
-    elif SMTP_USER and SMTP_PASS:
-        print("✅ SMTP configurado - tentará enviar via SMTP")
-
-# ========= FIM DAS CONFIGURAÇÕES =========
-
-# ============================================
-# INICIALIZAÇÃO FLASK
-# ============================================
+from sqlalchemy.pool import NullPool
 
 app = Flask(__name__)
-CORS(app)
 
-app.secret_key = SECRET_KEY
-app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Configurações do banco de dados Neon
+# O Render automaticamente adiciona a variável DATABASE_URL
+database_url = os.environ.get('DATABASE_URL')
 
-# Pool de conexões para melhor performance
-connection_pool = None
+# Neon usa postgresql:// mas algumas versões do SQLAlchemy precisam de postgresql://
+if database_url and database_url.startswith('postgresql://neondb_owner:npg_pLaUwI7O6iHC@ep-falling-tree-aiqb3bkq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'):
+    database_url = database_url.replace('postgresql://neondb_owner:npg_pLaUwI7O6iHC@ep-falling-tree-aiqb3bkq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require', 'postgresql://neondb_owner:npg_pLaUwI7O6iHC@ep-falling-tree-aiqb3bkq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require', 1)
 
-def init_connection_pool():
-    """Inicializa pool de conexões com Neon"""
-    global connection_pool
-    if DATABASE_URL:
-        try:
-            connection_pool = SimpleConnectionPool(
-                1, 20, DATABASE_URL, sslmode='require'
-            )
-            print("✅ Pool de conexões inicializado com Neon")
-            return True
-        except Exception as e:
-            print(f"❌ Erro ao criar pool: {e}")
-    return False
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': NullPool,  # Melhor para serverless/Render
+    'pool_pre_ping': True,
+    'connect_args': {
+        'sslmode': 'require',  # Neon requer SSL
+        'connect_timeout': 10,
+    }
+}
 
-def get_connection():
-    """Obtém conexão do pool"""
-    if connection_pool:
-        return connection_pool.getconn()
-    else:
-        # Fallback para conexão direta
-        try:
-            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            return conn
-        except Exception as e:
-            print(f"❌ Erro conexão direta: {e}")
-            return None
+# Configurações de email
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
-def return_connection(conn):
-    """Retorna conexão ao pool"""
-    if connection_pool:
-        connection_pool.putconn(conn)
-    else:
-        conn.close()
+db = SQLAlchemy(app)
+mail = Mail(app)
 
-# ============================================
-# FUNÇÕES DO BANCO DE DADOS - CLOUD
-# ============================================
-
-def verificar_conexao_neon():
-    """Verifica conexão com Neon"""
-    print("\n🔍 VERIFICANDO CONEXÃO COM NEON...")
+# Modelo do Usuário
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
     
-    conn = get_connection()
-    if not conn:
-        print("❌ Não conectou ao Neon")
-        print(f"   DATABASE_URL: {DATABASE_URL[:50]}..." if DATABASE_URL else "   DATABASE_URL não definida")
-        return False
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    senha = db.Column(db.String(100), nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
-    try:
-        cursor = conn.cursor()
-        
-        # Verificar versão do PostgreSQL
-        cursor.execute("SELECT version()")
-        version = cursor.fetchone()[0]
-        print(f"✅ Conectado ao PostgreSQL: {version.split(',')[0]}")
-        
-        # Verificar se tabelas existem
-        cursor.execute("""
-            SELECT table_name FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            AND table_name IN ('usuarios', 'historico_senhas')
-        """)
-        tabelas = cursor.fetchall()
-        
-        if tabelas:
-            print(f"✅ Tabelas encontradas: {[t[0] for t in tabelas]}")
-        else:
-            print("⚠️  Tabelas não encontradas. Execute criar_tabelas.sql no Neon")
-        
-        cursor.close()
-        return_connection(conn)
-        return True
-        
-    except Exception as e:
-        print(f"❌ Erro na verificação: {e}")
-        return_connection(conn)
-        return False
+    def __repr__(self):
+        return f'<Usuario {self.email}>'
 
-# ============================================
-# FUNÇÕES AUXILIARES
-# ============================================
-
-def validar_email(email):
-    """Valida formato do email"""
-    padrao = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(padrao, email) is not None
-
-def gerar_senha_aleatoria(tamanho=12):
-    """Gera senha aleatória"""
-    caracteres = string.ascii_letters + string.digits + "!@#$%&*"
-    senha = ''.join(random.choice(caracteres) for _ in range(tamanho))
+# Função para gerar senha aleatória
+def gerar_senha(tamanho=12):
+    """Gera uma senha segura aleatória"""
+    caracteres = string.ascii_letters + string.digits + string.punctuation
+    # Remove caracteres que podem causar confusão
+    caracteres = caracteres.replace("'", "").replace('"', "").replace('\\', '')
+    senha = ''.join(secrets.choice(caracteres) for _ in range(tamanho))
     return senha
 
-def enviar_email_smtp(destinatario, assunto, corpo_html):
-    """Função SMTP como fallback"""
-    
-    print(f"🔧 Tentando SMTP como fallback...")
-    
-    # Verificar se variáveis SMTP estão disponíveis
-    if 'SMTP_HOST' not in globals() or not SMTP_HOST:
-        print("❌ SMTP_HOST não configurado")
-        return False
-    
-    if not SMTP_USER or not SMTP_PASS:
-        print("❌ Credenciais SMTP incompletas")
-        return False
-    
+# Função para enviar email
+def enviar_email_boas_vindas(email, senha):
+    """Envia email com as credenciais de acesso"""
     try:
-        import smtplib
-        import ssl
-        import socket
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        
-        print(f"🔗 Conectando a {SMTP_HOST}:{SMTP_PORT}...")
-        
-        # Configurar timeout
-        socket.setdefaulttimeout(30)
-        
-        # Criar mensagem
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SMTP_USER
-        msg['To'] = destinatario
-        msg['Subject'] = assunto
-        msg.attach(MIMEText(corpo_html, 'html'))
-        
-        # Tentar conexão com STARTTLS (porta 587)
-        if SMTP_PORT == 587:
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-            server.starttls(context=ssl.create_default_context())
-        
-        # Tentar conexão com SSL (porta 465)
-        elif SMTP_PORT == 465:
-            context = ssl.create_default_context()
-            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30)
-        
-        # Outra porta
-        else:
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-        
-        # Login e envio
-        server.login(SMTP_USER, SMTP_PASS)
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"✅ Email enviado via SMTP para {destinatario}")
+        msg = Message(
+            subject='Bem-vindo! Seus dados de acesso',
+            recipients=[email]
+        )
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 40px auto;
+                    background-color: #ffffff;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 40px 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 28px;
+                }}
+                .content {{
+                    padding: 40px 30px;
+                }}
+                .content h2 {{
+                    color: #333;
+                    margin-top: 0;
+                }}
+                .credentials {{
+                    background-color: #f8f9fa;
+                    border-left: 4px solid #667eea;
+                    padding: 20px;
+                    margin: 20px 0;
+                    border-radius: 4px;
+                }}
+                .credentials p {{
+                    margin: 10px 0;
+                    font-size: 14px;
+                    color: #555;
+                }}
+                .credentials strong {{
+                    color: #333;
+                    font-size: 16px;
+                }}
+                .password {{
+                    font-family: 'Courier New', monospace;
+                    background-color: #e9ecef;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    display: inline-block;
+                    margin-top: 5px;
+                    font-size: 16px;
+                    color: #d63384;
+                }}
+                .footer {{
+                    background-color: #f8f9fa;
+                    padding: 20px 30px;
+                    text-align: center;
+                    color: #6c757d;
+                    font-size: 12px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Cadastro Realizado!</h1>
+                </div>
+                <div class="content">
+                    <h2>Bem-vindo à nossa plataforma!</h2>
+                    <p>Seu cadastro foi realizado com sucesso. Abaixo estão suas credenciais de acesso:</p>
+                    
+                    <div class="credentials">
+                        <p><strong>Email:</strong> {email}</p>
+                        <p><strong>Senha:</strong></p>
+                        <div class="password">{senha}</div>
+                    </div>
+                    
+                    <p style="color: #dc3545; margin-top: 20px;">
+                        ⚠️ <strong>Importante:</strong> Guarde esta senha em local seguro. Por questões de segurança, 
+                        recomendamos que você altere sua senha no primeiro acesso.
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>Este é um email automático. Por favor, não responda.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        mail.send(msg)
         return True
-        
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"❌ Erro de autenticação SMTP: {e}")
-        print("💡 Gere nova senha de app: https://myaccount.google.com/apppasswords")
-        return False
-        
-    except (socket.timeout, smtplib.SMTPServerDisconnected) as e:
-        print(f"⏰ Timeout/Desconexão SMTP: {e}")
-        print("💡 O Render Free Tier pode bloquear SMTP")
-        return False
-        
     except Exception as e:
-        print(f"⚠️ Erro SMTP: {type(e).__name__}: {e}")
+        print(f"Erro ao enviar email: {str(e)}")
         return False
 
-def enviar_email(destinatario, assunto, corpo_html):
-    """Envia email usando Resend (prioridade) ou SMTP como fallback"""
-    
-    if not ENABLE_EMAILS:
-        print("❌ E-mails desativados (ENABLE_EMAILS=false)")
-        return False
-    
-    print(f"\n{'='*60}")
-    print(f"📧 INICIANDO ENVIO PARA: {destinatario}")
-    print(f"📝 ASSUNTO: {assunto}")
-    print(f"{'='*60}")
-    
-    # MÉTODO 1: Usar Resend (recomendado para Render)
-    if RESEND_API_KEY and RESEND_AVAILABLE:
-        try:
-            print("🔧 Usando Resend API...")
-            
-            params = {
-                "from": "Sistema de Cadastro <onboarding@resend.dev>",
-                "to": destinatario,
-                "subject": assunto,
-                "html": corpo_html,
-                "headers": {
-                    "X-Application": "Sistema-Cadastro",
-                    "X-User-Email": destinatario
-                }
-            }
-            
-            # Enviar email via Resend
-            response = resend.Emails.send(params)
-            
-            print(f"✅ Email enviado via Resend!")
-            print(f"   ID: {response.get('id', 'N/A')}")
-            print(f"   De: {params['from']}")
-            print(f"   Para: {destinatario}")
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Erro no Resend: {type(e).__name__}: {str(e)[:100]}")
-            print("🔄 Tentando SMTP como fallback...")
-            
-            # Tenta SMTP como fallback
-            return enviar_email_smtp(destinatario, assunto, corpo_html)
-    
-    # MÉTODO 2: SMTP tradicional (se Resend não disponível)
-    elif 'SMTP_USER' in globals() and SMTP_USER and SMTP_PASS:
-        print("🔧 Resend não disponível, usando SMTP...")
-        return enviar_email_smtp(destinatario, assunto, corpo_html)
-    
-    # NENHUM MÉTODO DISPONÍVEL
-    else:
-        print("❌ Nenhum método de email configurado")
-        print("💡 Configure:")
-        print("   1. RESEND_API_KEY (recomendado para Render)")
-        print("   OU")
-        print("   2. SMTP_USER e SMTP_PASS")
-        return False
-
-# ============================================
-# FUNÇÕES DE BANCO DE DADOS
-# ============================================
-
-def email_existe(email):
-    """Verifica se email já está cadastrado - Cloud"""
-    email = email.strip().lower()
-    
-    conn = get_connection()
-    if not conn:
-        print("❌ email_existe: Não conseguiu conexão")
-        return False
-    
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM usuarios WHERE LOWER(email) = LOWER(%s)", (email,))
-        resultado = cursor.fetchone()
-        cursor.close()
-        return_connection(conn)
-        
-        return resultado is not None
-    except Exception as e:
-        print(f"❌ Erro email_existe: {e}")
-        return_connection(conn)
-        return False
-
-def salvar_usuario(nome, email, senha):
-    """Salva novo usuário - Cloud"""
-    conn = get_connection()
-    if not conn:
-        print("❌ salvar_usuario: Não conseguiu conexão")
-        return None
-    
-    try:
-        cursor = conn.cursor()
-        
-        cursor.execute(
-            """INSERT INTO usuarios (nome, email, senha, criado_em) 
-               VALUES (%s, %s, %s, NOW()) RETURNING id""",
-            (nome, email.lower(), senha)
-        )
-        
-        resultado = cursor.fetchone()
-        if resultado:
-            user_id = resultado[0]
-            conn.commit()
-            print(f"✅ salvar_usuario: Usuário salvo com ID: {user_id}")
-        else:
-            conn.rollback()
-            print("❌ salvar_usuario: Nenhum resultado retornado")
-            
-        cursor.close()
-        return_connection(conn)
-        
-        return user_id if resultado else None
-            
-    except Exception as e:
-        print(f"❌ Erro salvar_usuario: {e}")
-        conn.rollback()
-        cursor.close()
-        return_connection(conn)
-        return None
-
-def verificar_credenciais(email, senha):
-    """Verifica se email e senha estão corretos"""
-    print(f"🔐 Verificando credenciais para: {email}")
-    
-    conn = get_connection()
-    if not conn:
-        return None
-    
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, email, nome FROM usuarios WHERE email = %s AND senha = %s",
-            (email.lower(), senha)
-        )
-        usuario = cursor.fetchone()
-        
-        cursor.close()
-        return_connection(conn)
-        
-        if usuario:
-            print(f"✅ Login válido para: {email}")
-            return {'id': usuario[0], 'email': usuario[1], 'nome': usuario[2]}
-        else:
-            print(f"❌ Credenciais inválidas para: {email}")
-            return None
-            
-    except Exception as e:
-        print(f"❌ Erro em verificar_credenciais: {e}")
-        return_connection(conn)
-        return None
-
-# ============================================
-# MIDDLEWARE PARA LOGIN
-# ============================================
-
-def login_required(f):
-    """Decorator para exigir login"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'usuario_id' not in session:
-            return redirect('/login')
-        return f(*args, **kwargs)
-    return decorated_function
-
-# ============================================
-# MIDDLEWARE PARA HTTPS NO RENDER
-# ============================================
-
-@app.before_request
-def before_request():
-    """Força HTTPS no Render"""
-    if request.url.startswith('http://'):
-        url = request.url.replace('http://', 'https://', 1)
-        return redirect(url, code=301)
-
-# ============================================
-# ROTAS PÚBLICAS
-# ============================================
-
+# Rotas
 @app.route('/')
 def index():
-    """Página inicial SIMPLES"""
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Sistema de Cadastro</title>
-        <style>
-            body { font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto; }
-            .menu { margin: 20px 0; }
-            .menu a { display: inline-block; margin: 5px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
-            .menu a:hover { background: #0056b3; }
-            .info-box { margin-top: 30px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
-        </style>
-    </head>
-    <body>
-        <h1>🚀 Sistema de Cadastro Cloud</h1>
-        
-        <div class="menu">
-            <h2>📋 Menu Principal:</h2>
-            <a href="/cadastro-simples">📝 Cadastro Simples</a>
-            <a href="/login">🔐 Login</a>
-            <a href="/debug">🔧 Debug</a>
-        </div>
-        
-        <div class="menu">
-            <h2>🧪 Testes:</h2>
-            <a href="/test-email-resend">📧 Teste Resend</a>
-            <a href="/health">🩺 Health Check</a>
-        </div>
-        
-        <div class="info-box">
-            <h3>ℹ️ Sistema Online</h3>
-            <p><strong>URL:</strong> ''' + RENDER_EXTERNAL_URL + '''</p>
-            <p><strong>Status:</strong> ✅ Operacional</p>
-            <p><small>Render + Neon + Resend</small></p>
-        </div>
-    </body>
-    </html>
-    '''
-
-@app.route('/cadastro-simples', methods=['GET', 'POST'])
-def cadastro_simples():
-    """Rota SIMPLES de cadastro que sempre funciona"""
-    
-    print(f"\n{'='*60}")
-    print(f"🔍 ACESSANDO /cadastro-simples - Método: {request.method}")
-    print(f"{'='*60}")
-    
-    if request.method == 'GET':
-        print("📄 Retornando formulário GET")
-        return '''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Cadastro Simples</title>
-            <style>
-                body { font-family: Arial; padding: 20px; max-width: 500px; margin: 0 auto; }
-                input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; }
-                input { border: 1px solid #ddd; border-radius: 5px; }
-                button { background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-                button:hover { background: #218838; }
-            </style>
-        </head>
-        <body>
-            <h1>📝 Cadastro Simples</h1>
-            <p>Formulário direto que sempre funciona:</p>
-            
-            <form method="POST">
-                <input type="text" name="nome" placeholder="Seu nome completo" required>
-                <input type="email" name="email" placeholder="Seu email" required>
-                <button type="submit">✅ Cadastrar Agora</button>
-            </form>
-            
-            <p style="margin-top: 20px;">
-                <a href="/">🏠 Voltar ao início</a> | 
-                <a href="/debug">🔧 Debug</a>
-            </p>
-        </body>
-        </html>
-        '''
-    
-    # POST - Processar cadastro
-    nome = request.form.get('nome', '').strip()
-    email = request.form.get('email', '').strip().lower()
-    
-    print(f"📝 Dados recebidos (POST): nome='{nome}', email='{email}'")
-    
-    # Validar dados
-    if not nome or not email:
-        print("❌ Dados incompletos")
-        return '''
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ Erro</h1>
-            <p>Nome e email são obrigatórios.</p>
-            <p><a href="/cadastro-simples">← Tentar novamente</a></p>
-        </div>
-        ''', 400
-    
-    if not validar_email(email):
-        print(f"❌ Email inválido: {email}")
-        return f'''
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ Email Inválido</h1>
-            <p>O email "{email}" não é válido.</p>
-            <p><a href="/cadastro-simples">← Tentar novamente</a></p>
-        </div>
-        ''', 400
-    
-    # Verificar se email já existe
-    if email_existe(email):
-        print(f"❌ Email já existe: {email}")
-        return f'''
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: orange;">⚠️ Email já cadastrado</h1>
-            <p>O email "{email}" já está cadastrado no sistema.</p>
-            <p><a href="/login">🔐 Fazer login</a> ou <a href="/cadastro-simples">📝 Usar outro email</a></p>
-        </div>
-        ''', 400
-    
-    # Gerar senha aleatória
-    senha_gerada = gerar_senha_aleatoria(12)
-    print(f"🔑 Senha gerada: {senha_gerada}")
-    
-    try:
-        # 1. INSERIR NO BANCO (NeonDB)
-        print("💾 Tentando salvar no banco...")
-        usuario_id = salvar_usuario(nome, email, senha_gerada)
-        
-        if not usuario_id:
-            print("❌ Falha ao salvar no banco")
-            return '''
-            <div style="text-align: center; padding: 50px;">
-                <h1 style="color: red;">❌ Erro no Banco</h1>
-                <p>Não foi possível salvar no banco de dados.</p>
-                <p><a href="/cadastro-simples">← Tentar novamente</a></p>
-            </div>
-            ''', 500
-        
-        print(f"✅ Cadastro inserido no banco. ID: {usuario_id}")
-        
-        # 2. ENVIAR EMAIL (com Resend ou SMTP)
-        email_enviado = False
-        if ENABLE_EMAILS:
-            print(f"📧 Tentando enviar email para: {email}")
-            
-            sucesso = enviar_email(
-                destinatario=email,
-                assunto=f"🎉 Cadastro Realizado - {nome}",
-                corpo_html=f"""
-                <h2>Olá, {nome}!</h2>
-                <p>Seu cadastro foi realizado com sucesso.</p>
-                <p><strong>Senha:</strong> {senha_gerada}</p>
-                <p>Acesse: {RENDER_EXTERNAL_URL}/login</p>
-                """
-            )
-            
-            if sucesso:
-                email_enviado = True
-                print("✅ Email enviado com sucesso!")
-            else:
-                print("⚠️ Falha no envio do email")
-        else:
-            print("⚠️ ENABLE_EMAILS=false - Email não enviado")
-        
-        # 3. RETORNAR RESPOSTA HTML SIMPLES (GARANTIDO)
-        print("📄 Retornando página de sucesso...")
-        response_html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Cadastro Concluído</title>
-            <meta charset="UTF-8">
-            <style>
-                body {{ font-family: Arial; padding: 40px; text-align: center; }}
-                h1 {{ color: green; }}
-                .senha {{ font-size: 20px; font-weight: bold; color: red; background: #f0f0f0; padding: 10px; margin: 20px; display: inline-block; }}
-            </style>
-        </head>
-        <body>
-            <h1>✅ CADASTRO CONCLUÍDO!</h1>
-            <h2>Parabéns, {nome}!</h2>
-            
-            <div style="max-width: 500px; margin: 0 auto; text-align: left; padding: 20px; background: #f9f9f9; border-radius: 10px;">
-                <h3>📋 Seus Dados:</h3>
-                <p><strong>Nome:</strong> {nome}</p>
-                <p><strong>Email:</strong> {email}</p>
-                <p><strong>ID do usuário:</strong> {usuario_id}</p>
-                <p><strong>Sua senha:</strong></p>
-                <div class="senha">{senha_gerada}</div>
-                <p style="color: red; font-size: 14px;">⚠️ ANOTE ESTA SENHA! Ela não será mostrada novamente.</p>
-                
-                <hr style="margin: 20px 0;">
-                
-                <h3>📧 Status do Email:</h3>
-                <p>{'✅ Email de confirmação enviado!' if email_enviado else '⚠️ Email não enviado (sistema em teste)'}</p>
-            </div>
-            
-            <div style="margin-top: 30px;">
-                <a href="/login" style="padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 10px;">
-                    🔐 Fazer Login
-                </a>
-                <a href="/" style="padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin: 10px;">
-                    🏠 Voltar ao Início
-                </a>
-            </div>
-            
-            <p style="margin-top: 30px; color: #666; font-size: 12px;">
-                Sistema: {RENDER_EXTERNAL_URL} | ID: {usuario_id} | {datetime.now().strftime("%H:%M:%S")}
-            </p>
-        </body>
-        </html>
-        '''
-        
-        print("✅ Página HTML gerada com sucesso")
-        return response_html
-        
-    except Exception as e:
-        print(f"❌ ERRO NO CADASTRO: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        error_html = f'''
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ Erro no Cadastro</h1>
-            <p>{str(e)}</p>
-            <p><a href="/cadastro-simples">← Tentar novamente</a></p>
-        </div>
-        '''
-        print(f"📄 Retornando página de erro")
-        return error_html, 500
-
-@app.route('/login')
-def login():
-    """Página de login"""
-    if 'usuario_id' in session:
-        return redirect('/sistema')
-    return render_template('login.html')
-
-@app.route('/logar', methods=['POST'])
-def logar():
-    """Processa login"""
-    try:
-        dados = request.get_json()
-        email = dados.get('email', '').strip().lower()
-        senha = dados.get('senha', '')
-        
-        print(f"🔐 Tentativa de login para: {email}")
-        
-        if not email or not senha:
-            return jsonify({'sucesso': False, 'mensagem': 'Preencha todos os campos.'}), 400
-        
-        usuario = verificar_credenciais(email, senha)
-        
-        if usuario:
-            session['usuario_id'] = usuario['id']
-            session['usuario_email'] = usuario['email']
-            session['usuario_nome'] = usuario.get('nome', '')
-            session.permanent = True
-            
-            print(f"✅ Login bem-sucedido para usuário ID: {usuario['id']}")
-            
-            return jsonify({
-                'sucesso': True,
-                'mensagem': 'Login realizado com sucesso!',
-                'redirect': '/sistema'
-            })
-        else:
-            print(f"❌ Login falhou para: {email}")
-            return jsonify({'sucesso': False, 'mensagem': 'Email ou senha incorretos.'}), 401
-            
-    except Exception as e:
-        print(f"❌ Erro no login: {e}")
-        return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
-
-@app.route('/cadastrar', methods=['GET', 'POST'])
-def cadastrar():
-    """Rota de cadastro original (mantida para compatibilidade)"""
-    return redirect('/cadastro-simples')
-
-# ============================================
-# ROTAS PROTEGIDAS (requerem login)
-# ============================================
-
-@app.route('/sistema')
-@login_required
-def sistema():
-    """Página após login"""
-    return render_template('sistema.html', 
-                         email=session.get('usuario_email', ''),
-                         nome=session.get('usuario_nome', ''),
-                         usuario_id=session.get('usuario_id', ''))
-
-@app.route('/trocar-senha')
-@login_required
-def trocar_senha():
-    """Página para trocar senha"""
-    return render_template('trocar_senha.html', 
-                         email=session.get('usuario_email', ''))
-
-@app.route('/atualizar-senha', methods=['POST'])
-@login_required
-def atualizar_senha():
-    """Processa troca de senha"""
-    try:
-        dados = request.get_json()
-        nova_senha = dados.get('nova_senha', '')
-        confirmar_senha = dados.get('confirmar_senha', '')
-        
-        if not nova_senha or not confirmar_senha:
-            return jsonify({'sucesso': False, 'mensagem': 'Preencha todos os campos.'}), 400
-        
-        if nova_senha != confirmar_senha:
-            return jsonify({'sucesso': False, 'mensagem': 'As senhas não coincidem.'}), 400
-        
-        if len(nova_senha) < 6:
-            return jsonify({'sucesso': False, 'mensagem': 'Senha deve ter pelo menos 6 caracteres.'}), 400
-        
-        # Atualiza senha no banco
-        conn = get_connection()
-        if not conn:
-            return jsonify({'sucesso': False, 'mensagem': 'Erro de conexão com banco.'}), 500
-        
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE usuarios SET senha = %s WHERE id = %s",
-                (nova_senha, session['usuario_id'])
-            )
-            conn.commit()
-            cursor.close()
-            return_connection(conn)
-            
-            # Envia email de confirmação
-            if ENABLE_EMAILS:
-                try:
-                    assunto = "🔒 Sua senha foi alterada"
-                    mensagem = f"""
-                    <html><body>
-                    <h2>Senha Alterada com Sucesso!</h2>
-                    <p>Sua senha de acesso ao sistema foi alterada.</p>
-                    <p><strong>Nova senha:</strong> {nova_senha}</p>
-                    </body></html>
-                    """
-                    enviar_email(session['usuario_email'], assunto, mensagem)
-                except Exception as e:
-                    print(f"⚠️ Não foi possível enviar email de confirmação: {e}")
-            
-            return jsonify({
-                'sucesso': True,
-                'mensagem': 'Senha alterada com sucesso!'
-            })
-            
-        except Exception as e:
-            print(f"❌ Erro ao atualizar senha: {e}")
-            return_connection(conn)
-            return jsonify({'sucesso': False, 'mensagem': 'Erro ao atualizar senha.'}), 500
-            
-    except Exception as e:
-        print(f"❌ Erro geral em atualizar-senha: {e}")
-        return jsonify({'sucesso': False, 'mensagem': 'Erro interno.'}), 500
-
-@app.route('/logout')
-def logout():
-    """Logout"""
-    session.clear()
-    return redirect('/')
-
-# ============================================
-# ROTAS DE TESTE E DIAGNÓSTICO
-# ============================================
+    """Página inicial"""
+    return render_template('index.html')
 
 @app.route('/health')
-def health_check():
-    """Health check para Render"""
-    conn = get_connection()
-    db_status = 'connected' if conn else 'disconnected'
-    if conn:
-        return_connection(conn)
-    
-    return jsonify({
-        'status': 'healthy',
-        'database': db_status,
-        'service': 'envia-senha-email',
-        'timestamp': 'online'
-    })
-
-@app.route('/debug')
-def debug():
-    """Página de debug"""
-    import sys, os
-    
-    # Verificar se variáveis SMTP existem
-    smtp_loaded = 'SMTP_HOST' in locals() or 'SMTP_HOST' in globals()
-    
-    return f"""
-    <html>
-    <body style="font-family: Arial; padding: 20px;">
-        <h1>🔧 Debug do Sistema</h1>
-        
-        <h2>Informações do Sistema</h2>
-        <p><strong>Python:</strong> {sys.version}</p>
-        <p><strong>Diretório:</strong> {os.getcwd()}</p>
-        <p><strong>Arquivos:</strong> {', '.join(sorted(os.listdir('.')))}</p>
-        
-        <h2>📧 Configurações de E-mail (CRÍTICO)</h2>
-        <p><strong>ENABLE_EMAILS:</strong> {'✅ TRUE' if ENABLE_EMAILS else '❌ FALSE'}</p>
-        <p><strong>RESEND_API_KEY:</strong> {'✅ Definida' if RESEND_API_KEY else '❌ Não definida'}</p>
-        <p><strong>SMTP Carregado:</strong> {'✅ SIM' if smtp_loaded else '❌ NÃO'}</p>
-        <p><strong>SMTP_USER:</strong> {'✅ ' + SMTP_USER if smtp_loaded and SMTP_USER else '❌ Não carregado'}</p>
-        <p><strong>SMTP_HOST:</strong> {'✅ ' + SMTP_HOST if SMTP_HOST and SMTP_HOST != 'smtp.gmail.com' else '❌ Usando default'}</p>
-        
-        <h2>⚙️ Outras Configurações</h2>
-        <p><strong>DATABASE_URL:</strong> {'✅ Definida' if DATABASE_URL else '❌ Não definida'}</p>
-        <p><strong>RENDER_EXTERNAL_URL:</strong> {RENDER_EXTERNAL_URL}</p>
-        
-        <h2>🧪 Testes Específicos de E-mail</h2>
-        <ul>
-            <li><a href="/test-email-resend">🎯 Teste Resend</a></li>
-            <li><a href="/test-email-direct">📧 Teste Direto</a></li>
-            <li><a href="/cadastro-simples">👤 Cadastro Simples</a></li>
-        </ul>
-        
-        <h2>🔍 Outros Testes</h2>
-        <ul>
-            <li><a href="/health">🩺 Health Check</a></li>
-            <li><a href="/">🏠 Página Principal</a></li>
-            <li><a href="/login">🔐 Página de Login</a></li>
-        </ul>
-        
-        <h3>🚨 Logs Imediatos (console)</h3>
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
-            <i>Verifique os logs no Console do Render para mensagens de erro</i>
-        </div>
-    </body>
-    </html>
-    """
-
-@app.route('/test-email-direct')
-def test_email_direct():
-    """Teste DIRETO de envio de email (sem formulário)"""
-    
-    print(f"\n{'='*60}")
-    print("🧪 TESTE DIRETO DE E-MAIL INICIADO")
-    print(f"{'='*60}")
-    
-    resultado = enviar_email(
-        destinatario="brunorochasenacal01@gmail.com",  # Seu email
-        assunto="🎯 TESTE DIRETO do Sistema",
-        corpo_html=f"""
-        <h2>Teste Direto de E-mail</h2>
-        <p>Se você recebeu esta mensagem, o sistema de e-mails está funcionando!</p>
-        <p><strong>Data:</strong> {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>
-        <p><strong>Status:</strong> ✅ Sucesso</p>
-        """
-    )
-    
-    if resultado:
-        return """
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: green;">✅ Teste Iniciado!</h1>
-            <p>O e-mail foi enviado. Verifique:</p>
-            <ol style="text-align: left; max-width: 500px; margin: 20px auto;">
-                <li>Sua caixa de entrada</li>
-                <li>Pasta de spam/lixo eletrônico</li>
-                <li>Console do Render para logs detalhados</li>
-            </ol>
-            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
-        </div>
-        """
-    else:
-        return """
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ Falha no Teste</h1>
-            <p>Verifique os logs no Console do Render para ver o erro exato.</p>
-            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
-        </div>
-        """
-
-@app.route('/test-email-resend')
-def test_email_resend():
-    """Teste específico do Resend"""
-    
-    if not RESEND_API_KEY:
-        return '''
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ RESEND_API_KEY não configurada</h1>
-            <p>Configure a variável RESEND_API_KEY no Render Dashboard</p>
-            <p><a href="/debug">🔧 Ver configurações</a></p>
-        </div>
-        '''
-    
+def health():
+    """Health check para o Render"""
     try:
-        # Teste DIRETO com Resend
-        params = {
-            "from": "Teste <onboarding@resend.dev>",
-            "to": "brunorochasenacal01@gmail.com",
-            "subject": "✅ Teste Resend - Sistema Funcionando",
-            "html": f"""
-            <h1>🎉 Teste Bem-Sucedido!</h1>
-            <p>Se você está lendo esta mensagem, o <strong>Resend está integrado</strong> no seu sistema!</p>
-            <p><strong>Data:</strong> {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>
-            <p><strong>Aplicação:</strong> Sistema de Cadastro</p>
-            <hr>
-            <p><small>Email enviado via Resend API</small></p>
-            """
-        }
-        
-        response = resend.Emails.send(params)
-        
-        return f"""
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: green;">✅ Teste Resend Enviado!</h1>
-            <p>ID do email: <code>{response['id']}</code></p>
-            <p>Verifique sua caixa de entrada em alguns segundos.</p>
-            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
-        </div>
-        """
-        
+        # Testa a conexão com o banco
+        db.session.execute(db.text('SELECT 1'))
+        return jsonify({'status': 'ok', 'database': 'connected'}), 200
     except Exception as e:
-        return f"""
-        <div style="text-align: center; padding: 50px;">
-            <h1 style="color: red;">❌ Erro no Resend</h1>
-            <p>{str(e)}</p>
-            <p><a href="/debug" style="color: blue;">← Voltar ao Debug</a></p>
-        </div>
-        """
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# ============================================
-# ROTA DE TESTE BANCO (CRÍTICA)
-# ============================================
-
-@app.route('/teste-banco')
-def teste_banco():
-    """Testa APENAS o banco de dados"""
-    
-    print(f"\n🧪 TESTE BANCO INICIADO")
-    
+@app.route('/cadastrar', methods=['POST'])
+def cadastrar():
+    """Endpoint para cadastro de usuário"""
     try:
-        conn = get_connection()
-        if not conn:
-            return "❌ Não conectou ao banco", 500
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
         
-        cursor = conn.cursor()
+        # Validação básica
+        if not email or '@' not in email or '.' not in email:
+            return jsonify({
+                'sucesso': False,
+                'mensagem': 'Por favor, insira um email válido.'
+            }), 400
         
-        # 1. Verificar se tabela existe
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name = 'usuarios'
-            )
-        """)
-        tabela_existe = cursor.fetchone()[0]
+        # Verifica se o email já existe
+        usuario_existente = Usuario.query.filter_by(email=email).first()
+        if usuario_existente:
+            return jsonify({
+                'sucesso': False,
+                'mensagem': 'Este email já está cadastrado.'
+            }), 400
         
-        if not tabela_existe:
-            print("❌ Tabela 'usuarios' não existe")
-            cursor.close()
-            return_connection(conn)
-            return "❌ Tabela 'usuarios' não existe. Crie com o script SQL.", 500
+        # Gera senha
+        senha_gerada = gerar_senha()
         
-        print(f"✅ Tabela 'usuarios' existe")
+        # Cria novo usuário
+        novo_usuario = Usuario(email=email, senha=senha_gerada)
+        db.session.add(novo_usuario)
+        db.session.commit()
         
-        # 2. Contar usuários
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        total = cursor.fetchone()[0]
-        print(f"✅ Total de usuários: {total}")
+        # Envia email
+        email_enviado = enviar_email_boas_vindas(email, senha_gerada)
         
-        # 3. Inserir usuário de teste
-        cursor.execute("""
-            INSERT INTO usuarios (nome, email, senha) 
-            VALUES ('Teste Banco', 'teste@banco.com', 'senha123')
-            ON CONFLICT (email) DO NOTHING
-            RETURNING id
-        """)
-        
-        resultado = cursor.fetchone()
-        if resultado:
-            conn.commit()
-            novo_id = resultado[0]
-            print(f"✅ Novo usuário inserido. ID: {novo_id}")
+        if email_enviado:
+            return jsonify({
+                'sucesso': True,
+                'mensagem': 'Cadastro realizado com sucesso! Verifique seu email.'
+            }), 201
         else:
-            conn.rollback()
-            print("✅ Usuário de teste já existe (ou conflito)")
-        
-        cursor.close()
-        return_connection(conn)
-        
-        return f'''
-        <html>
-        <body style="padding: 20px;">
-            <h1>✅ Banco OK!</h1>
-            <p>Tabela existe: SIM</p>
-            <p>Total de usuários: {total}</p>
-            <p>Teste concluído com sucesso!</p>
-            <p><a href="/">Voltar</a></p>
-        </body>
-        </html>
-        '''
-        
+            # Mesmo que o email falhe, o cadastro foi feito
+            return jsonify({
+                'sucesso': True,
+                'mensagem': 'Cadastro realizado! (Houve um problema ao enviar o email)',
+                'aviso': True
+            }), 201
+            
     except Exception as e:
-        print(f"❌ ERRO no teste do banco: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"❌ Erro: {str(e)}", 500
+        db.session.rollback()
+        print(f"Erro no cadastro: {str(e)}")
+        return jsonify({
+            'sucesso': False,
+            'mensagem': 'Erro ao processar cadastro. Tente novamente.'
+        }), 500
 
-# ============================================
-# FUNÇÃO DE TESTE DE CONEXÃO SMTP
-# ============================================
+# Comando para criar as tabelas
+@app.cli.command()
+def init_db():
+    """Inicializa o banco de dados"""
+    with app.app_context():
+        db.create_all()
+        print("✅ Banco de dados criado com sucesso!")
 
-def testar_conexao_smtp():
-    """Testa conexão básica com SMTP"""
+@app.cli.command()
+def test_db():
+    """Testa a conexão com o banco de dados"""
     try:
-        import socket
-        print(f"\n🔍 TESTANDO CONEXÃO COM {SMTP_HOST}:{SMTP_PORT}")
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        resultado = sock.connect_ex((SMTP_HOST, SMTP_PORT))
-        sock.close()
-        
-        if resultado == 0:
-            print(f"✅ Porta {SMTP_PORT} aberta em {SMTP_HOST}")
-            return True
-        else:
-            print(f"❌ Não foi possível conectar a {SMTP_HOST}:{SMTP_PORT}")
-            print(f"💡 O Render Free Tier pode bloquear conexões SMTP")
-            return False
+        db.session.execute(db.text('SELECT 1'))
+        print("✅ Conexão com o banco de dados OK!")
     except Exception as e:
-        print(f"❌ Erro no teste: {e}")
-        return False
-
-# Executar teste se ENABLE_EMAILS for True
-if ENABLE_EMAILS and SMTP_HOST and SMTP_PORT:
-    testar_conexao_smtp()
-
-# ============================================
-# INICIALIZAÇÃO
-# ============================================
+        print(f"❌ Erro na conexão: {str(e)}")
 
 if __name__ == '__main__':
-    # Inicializar pool de conexões
-    init_connection_pool()
-    
-    # Verificar conexão com Neon
-    if verificar_conexao_neon():
-        print("\n" + "="*60)
-        print("✅ SISTEMA PRONTO PARA CLOUD")
-        print("="*60)
-        print(f"🌐 URL: {RENDER_EXTERNAL_URL}")
-        print(f"🔗 Health Check: {RENDER_EXTERNAL_URL}/health")
-        print(f"🔧 Debug: {RENDER_EXTERNAL_URL}/debug")
-        
-        # No Render, use a porta fornecida pelo ambiente
-        port = int(os.getenv('PORT', 5000))
-        app.run(host='0.0.0.0', port=port, debug=False)
-    else:
-        print("\n❌ Não foi possível conectar ao Neon")
-        print("💡 Verifique:")
-        print("   1. DATABASE_URL no .env ou variáveis de ambiente")
-        print("   2. Tabelas foram criadas? (execute criar_tabelas.sql no Neon)")
-        print("   3. Internet está funcionando")print("   3. Internet está funcionando")
-
+    # O Render usa a variável PORT
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
 
