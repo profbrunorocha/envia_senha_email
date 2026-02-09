@@ -150,38 +150,51 @@ def gerar_senha(tamanho=8):
 
 
 
-
-
-@app.route("/cadastrar", methods=["POST"])
+@app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    email = request.form.get("email")
-
-    if not email:
-        return jsonify({"sucesso": False, "erro": "Email obrigatório"})
-
     try:
-        # Verifica se já existe
-        if Usuario.query.filter_by(email=email).first():
-            return jsonify({"sucesso": False, "erro": "Email já cadastrado"})
+        data = request.get_json()
+        email = data.get('email')
 
-        # Gera senha
+        if not email:
+            return jsonify({"sucesso": False, "mensagem": "Email não informado"}), 400
+
+        usuario_existente = Usuario.query.filter_by(email=email).first()
+
+        if usuario_existente:
+            return jsonify({
+                "sucesso": True,
+                "aviso": True,
+                "mensagem": "Este email já estava cadastrado. Tente fazer login."
+            })
+
+        # gera senha automática
         senha = gerar_senha()
 
-        # Salva no banco
-        novo_usuario = Usuario(email=email, senha=senha)
+        novo_usuario = Usuario(
+            email=email,
+            senha=senha
+        )
+
         db.session.add(novo_usuario)
         db.session.commit()
 
-        # Envia email
-        if not enviar_email_boas_vindas(email, senha):
-            return jsonify({"sucesso": False, "erro": "Erro ao enviar email"})
+        # envia email
+        enviar_email_boas_vindas(email, senha)
 
-        return jsonify({"sucesso": True})
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Conta criada! Verifique seu email 📧"
+        })
 
     except Exception as e:
-        db.session.rollback()
-        print("ERRO:", e)
-        return jsonify({"sucesso": False, "erro": "Erro interno"})
+        print("ERRO NA ROTA:", e)
+        return jsonify({
+            "sucesso": False,
+            "mensagem": "Erro interno no servidor"
+        }), 500
+
+
 
 
 
@@ -211,6 +224,7 @@ def test_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
