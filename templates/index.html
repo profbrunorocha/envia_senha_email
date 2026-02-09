@@ -301,7 +301,53 @@
                 padding: 16px;
             }
         }
+    
     </style>
+
+
+
+
+<script>
+const form = document.getElementById("formCadastro");
+
+form.addEventListener("submit", function(e) {
+    e.preventDefault(); // impede recarregar a página
+
+    const formData = new FormData(form);
+
+    fetch("/cadastrar", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.sucesso) {
+            alert("Conta criada! Verifique seu email 📧");
+            form.reset();
+        } else {
+            mostrarErro(data.erro);
+        }
+    })
+    .catch(() => {
+        mostrarErro("Erro ao conectar com o servidor");
+    });
+});
+
+function mostrarErro(msg) {
+    const box = document.querySelector(".erro-box"); // sua div vermelha
+    box.style.display = "block";
+    box.innerText = msg;
+}
+</script>
+
+
+
+
+
+
+
+
+    
 </head>
 <body>
     <div class="container">
@@ -411,3 +457,4 @@
     </script>
 </body>
 </html>
+
