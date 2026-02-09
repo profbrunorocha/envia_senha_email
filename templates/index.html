@@ -7,12 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --primary: #2d3748;
@@ -33,215 +30,79 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: -10%;
-            right: -5%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(237, 137, 54, 0.08) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        body::after {
-            content: '';
-            position: absolute;
-            bottom: -15%;
-            left: -10%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(45, 55, 72, 0.05) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
         }
 
         .container {
-            position: relative;
             max-width: 520px;
             width: 100%;
             background: white;
             border-radius: 24px;
-            box-shadow: 
-                0 10px 40px rgba(0, 0, 0, 0.08),
-                0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
             overflow: hidden;
-            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             padding: 60px 40px 50px;
             text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            opacity: 1;
+            color: white;
         }
 
         .header h1 {
             font-family: 'Playfair Display', serif;
             font-size: 42px;
-            font-weight: 900;
-            color: white;
             margin-bottom: 12px;
-            letter-spacing: -1px;
-            position: relative;
-            z-index: 1;
         }
 
-        .header p {
-            font-size: 16px;
-            color: rgba(255, 255, 255, 0.85);
-            font-weight: 300;
-            letter-spacing: 0.3px;
-            position: relative;
-            z-index: 1;
-        }
+        .content { padding: 50px 40px; }
 
-        .content {
-            padding: 50px 40px;
-        }
-
-        .form-group {
-            margin-bottom: 30px;
-        }
+        .form-group { margin-bottom: 30px; }
 
         label {
             display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 10px;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
             font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
         }
 
         input[type="email"] {
             width: 100%;
             padding: 16px 20px;
             font-size: 16px;
-            font-family: 'Work Sans', sans-serif;
             border: 2px solid #e2e8f0;
             border-radius: 12px;
             background: #fafafa;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
         }
 
         input[type="email"]:focus {
             border-color: var(--accent);
             background: white;
-            box-shadow: 0 0 0 4px rgba(237, 137, 54, 0.1);
-        }
-
-        input[type="email"]::placeholder {
-            color: #cbd5e0;
         }
 
         .btn {
             width: 100%;
             padding: 18px;
-            font-size: 16px;
             font-weight: 600;
-            font-family: 'Work Sans', sans-serif;
             color: white;
             background: linear-gradient(135deg, var(--accent) 0%, #dd6b20 100%);
             border: none;
             border-radius: 12px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            font-size: 14px;
-            box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(237, 137, 54, 0.4);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
         }
 
         .message {
             margin-top: 20px;
-            padding: 16px 20px;
+            padding: 16px;
             border-radius: 12px;
-            font-size: 14px;
-            line-height: 1.6;
-            animation: fadeIn 0.5s ease;
             display: none;
+            font-size: 14px;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.success {
-            background: #f0fff4;
-            color: #22543d;
-            border: 2px solid var(--success);
-        }
-
-        .message.error {
-            background: #fff5f5;
-            color: #742a2a;
-            border: 2px solid var(--error);
-        }
-
-        .message.warning {
-            background: #fffaf0;
-            color: #744210;
-            border: 2px solid var(--accent);
-        }
-
-        .message strong {
-            display: block;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
+        .message.success { background: #f0fff4; border: 2px solid var(--success); }
+        .message.error { background: #fff5f5; border: 2px solid var(--error); }
+        .message.warning { background: #fffaf0; border: 2px solid var(--accent); }
 
         .loader {
             display: inline-block;
@@ -252,129 +113,26 @@
             border-top-color: white;
             animation: spin 0.8s linear infinite;
             margin-right: 8px;
-            vertical-align: middle;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .info-box {
-            background: #f7fafc;
-            border-left: 4px solid var(--accent);
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            font-size: 14px;
-            color: var(--text-light);
-            line-height: 1.6;
-        }
-
-        .info-box strong {
-            color: var(--text-dark);
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                border-radius: 16px;
-            }
-
-            .header {
-                padding: 40px 30px 35px;
-            }
-
-            .header h1 {
-                font-size: 32px;
-            }
-
-            .content {
-                padding: 35px 30px;
-            }
-
-            input[type="email"] {
-                padding: 14px 18px;
-            }
-
-            .btn {
-                padding: 16px;
-            }
-        }
-    
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
-
-
-
-
-<script>
-const form = document.getElementById("formCadastro");
-
-form.addEventListener("submit", function(e) {
-    e.preventDefault(); // impede recarregar a página
-
-    const formData = new FormData(form);
-
-    fetch("/cadastrar", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.sucesso) {
-            alert("Conta criada! Verifique seu email 📧");
-            form.reset();
-        } else {
-            mostrarErro(data.erro);
-        }
-    })
-    .catch(() => {
-        mostrarErro("Erro ao conectar com o servidor");
-    });
-});
-
-function mostrarErro(msg) {
-    const box = document.querySelector(".erro-box"); // sua div vermelha
-    box.style.display = "block";
-    box.innerText = msg;
-}
-</script>
-
-
-
-
-
-
-
-
-    
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>Bem-vindo</h1>
             <p>Cadastre-se para começar sua jornada</p>
         </div>
-        
-        <div class="content">
-            <div class="info-box">
-                <strong>Como funciona?</strong>
-                Insira seu email abaixo. Uma senha será gerada automaticamente e enviada para você.
-            </div>
 
+        <div class="content">
             <form id="cadastroForm">
                 <div class="form-group">
                     <label for="email">Seu Email</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        placeholder="seu@email.com" 
-                        required
-                        autocomplete="email"
-                    >
+                    <input type="email" id="email" name="email" placeholder="seu@email.com" required>
                 </div>
-                
+
                 <button type="submit" class="btn" id="submitBtn">
                     Criar Minha Conta
                 </button>
@@ -392,9 +150,9 @@ function mostrarErro(msg) {
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const email = emailInput.value.trim();
-            
+
             if (!email || !email.includes('@')) {
                 showMessage('error', 'Por favor, insira um email válido.');
                 return;
@@ -402,32 +160,24 @@ function mostrarErro(msg) {
 
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="loader"></span>Cadastrando...';
-            messageDiv.style.display = 'none';
 
             try {
                 const response = await fetch('/cadastrar', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
 
                 const data = await response.json();
 
                 if (data.sucesso) {
-                    if (data.aviso) {
-                        showMessage('warning', data.mensagem);
-                    } else {
-                        showMessage('success', data.mensagem);
-                    }
+                    showMessage(data.aviso ? 'warning' : 'success', data.mensagem);
                     form.reset();
                 } else {
                     showMessage('error', data.mensagem);
                 }
-            } catch (error) {
-                console.error('Erro:', error);
-                showMessage('error', 'Erro ao conectar com o servidor. Tente novamente.');
+            } catch {
+                showMessage('error', 'Erro ao conectar com o servidor.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Criar Minha Conta';
@@ -436,25 +186,11 @@ function mostrarErro(msg) {
 
         function showMessage(type, text) {
             messageDiv.className = `message ${type}`;
-            
-            let icon = '';
-            let title = '';
-            
-            if (type === 'success') {
-                icon = '✓';
-                title = 'Sucesso!';
-            } else if (type === 'error') {
-                icon = '✕';
-                title = 'Ops!';
-            } else if (type === 'warning') {
-                icon = '⚠';
-                title = 'Atenção!';
-            }
-            
-            messageDiv.innerHTML = `<strong>${icon} ${title}</strong> ${text}`;
+            messageDiv.innerHTML = `<strong>${type.toUpperCase()}</strong> ${text}`;
             messageDiv.style.display = 'block';
         }
     </script>
 </body>
 </html>
+
 
