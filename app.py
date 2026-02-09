@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 
 
+
 app = Flask(__name__)
 
 # ================== BANCO DE DADOS (NEON + RENDER) ==================
@@ -71,13 +72,13 @@ def gerar_senha(tamanho=12):
 
 
 def enviar_email_async(app, msg):
-    """Envia o email em uma thread separada (não trava o servidor)."""
     with app.app_context():
         try:
             mail.send(msg)
-            print("✅ Email enviado com sucesso")
+            print("EMAIL ENVIADO COM SUCESSO")
         except Exception as e:
-            print("❌ ERRO AO ENVIAR EMAIL:", e)
+            print("ERRO AO ENVIAR EMAIL:", e)
+
 
 
 def enviar_email_boas_vindas(email, senha):
@@ -136,10 +137,7 @@ def health():
 
 
 
-import random
-import string
-from flask import request, render_template
-from sqlalchemy.exc import SQLAlchemyError
+
 
 
 def gerar_senha(tamanho=8):
@@ -152,47 +150,31 @@ def gerar_senha(tamanho=8):
 
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    try:
-        data = request.get_json()
-        email = data.get('email')
+    data = request.get_json()
+    email = data.get('email')
 
-        if not email:
-            return jsonify({"sucesso": False, "mensagem": "Email não informado"}), 400
+    # gerar senha
+    senha = gerar_senha()
 
-        usuario_existente = Usuario.query.filter_by(email=email).first()
+    # salvar no banco
+    novo_usuario = Usuario(email=email, senha=senha)
+    db.session.add(novo_usuario)
+    db.session.commit()
 
-        if usuario_existente:
-            return jsonify({
-                "sucesso": True,
-                "aviso": True,
-                "mensagem": "Este email já estava cadastrado. Tente fazer login."
-            })
+    # montar email
+    msg = Message(
+        "Sua senha de acesso",
+        recipients=[email]
+    )
+    msg.body = f"Sua senha é: {senha}"
 
-        # gera senha automática
-        senha = gerar_senha()
+    # ENVIAR CERTO
+    Thread(target=enviar_email_async, args=(app, msg)).start()
 
-        novo_usuario = Usuario(
-            email=email,
-            senha=senha
-        )
-
-        db.session.add(novo_usuario)
-        db.session.commit()
-
-        # envia email
-        enviar_email_boas_vindas(email, senha)
-
-        return jsonify({
-            "sucesso": True,
-            "mensagem": "Conta criada! Verifique seu email 📧"
-        })
-
-    except Exception as e:
-        print("ERRO NA ROTA:", e)
-        return jsonify({
-            "sucesso": False,
-            "mensagem": "Erro interno no servidor"
-        }), 500
+    return jsonify({
+        "sucesso": True,
+        "mensagem": "Conta criada! Verifique seu email."
+    })
 
 
 
@@ -224,6 +206,7 @@ def test_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
