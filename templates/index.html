@@ -1,480 +1,413 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro - Sistema Completo</title>
+    <title>Cadastro - Sistema de Integração</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2d3748;
+            --secondary: #4a5568;
+            --accent: #ed8936;
+            --success: #48bb78;
+            --error: #f56565;
+            --bg-light: #faf7f2;
+            --text-dark: #1a202c;
+            --text-light: #718096;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-family: 'Work Sans', sans-serif;
+            background: linear-gradient(135deg, #fdfbf7 0%, #f7ede2 100%);
             min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
         }
-        
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(237, 137, 54, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: -15%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(45, 55, 72, 0.05) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
         .container {
+            position: relative;
+            max-width: 520px;
             width: 100%;
-            max-width: 500px;
-        }
-        
-        .card {
             background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 24px;
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        
-        h1 {
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 60px 40px 50px;
             text-align: center;
-            color: #333;
-            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 1;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            font-weight: 900;
+            color: white;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 300;
+            letter-spacing: 0.3px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 50px 40px;
+        }
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
-        
+
         label {
             display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: bold;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            font-size: 12px;
         }
-        
+
         input[type="email"] {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
+            padding: 16px 20px;
             font-size: 16px;
-        }
-        
-        input:focus {
+            font-family: 'Work Sans', sans-serif;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: #fafafa;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
-            border-color: #667eea;
         }
-        
-        button {
+
+        input[type="email"]:focus {
+            border-color: var(--accent);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(237, 137, 54, 0.1);
+        }
+
+        input[type="email"]::placeholder {
+            color: #cbd5e0;
+        }
+
+        .btn {
             width: 100%;
-            padding: 14px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
+            padding: 18px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
+            font-family: 'Work Sans', sans-serif;
+            color: white;
+            background: linear-gradient(135deg, var(--accent) 0%, #dd6b20 100%);
+            border: none;
+            border-radius: 12px;
             cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        button:hover {
-            background: #45a049;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .mensagem {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 5px;
-            display: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
             font-size: 14px;
+            box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);
         }
-        
-        .sucesso {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(237, 137, 54, 0.4);
         }
-        
-        .erro {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+
+        .btn:active {
+            transform: translateY(0);
         }
-        
-        .carregando {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4CAF50;
-            border-radius: 50%;
-            animation: girar 1s linear infinite;
-            margin-right: 10px;
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
-        
-        @keyframes girar {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .links {
+
+        .message {
             margin-top: 20px;
-            text-align: center;
-        }
-        
-        .links a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .links a:hover {
-            text-decoration: underline;
-        }
-        
-        .debug-panel {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f5f5f5;
-            border-radius: 5px;
-            font-size: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            animation: fadeIn 0.5s ease;
             display: none;
         }
-        
-        .debug-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            cursor: pointer;
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
-        .debug-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
+
+        .message.success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 2px solid var(--success);
         }
-        
-        .debug-content.expanded {
-            max-height: 300px;
-            overflow-y: auto;
+
+        .message.error {
+            background: #fff5f5;
+            color: #742a2a;
+            border: 2px solid var(--error);
         }
-        
-        .debug-log {
-            font-family: monospace;
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 10px;
-            border-radius: 3px;
-            margin-top: 5px;
-            font-size: 11px;
-            white-space: pre-wrap;
-            word-break: break-all;
+
+        .message.warning {
+            background: #fffaf0;
+            color: #744210;
+            border: 2px solid var(--accent);
+        }
+
+        .message strong {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid var(--accent);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: var(--text-dark);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                border-radius: 16px;
+            }
+
+            .header {
+                padding: 40px 30px 35px;
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .content {
+                padding: 35px 30px;
+            }
+
+            input[type="email"] {
+                padding: 14px 18px;
+            }
+
+            .btn {
+                padding: 16px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <h1>📧 Cadastro no Sistema</h1>
-            
-            <form id="formCadastro">
+        <div class="header">
+            <h1>Bem-vindo</h1>
+            <p>Cadastre-se para começar sua jornada</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <strong>Como funciona?</strong>
+                Insira seu email abaixo. Uma senha será gerada automaticamente e enviada para você.
+            </div>
+
+            <form id="cadastroForm">
                 <div class="form-group">
-                    <label for="email">Seu Email:</label>
+                    <label for="email">Seu Email</label>
                     <input 
                         type="email" 
                         id="email" 
-                        placeholder="exemplo@email.com"
+                        name="email" 
+                        placeholder="seu@email.com" 
                         required
-                        autofocus
+                        autocomplete="email"
                     >
                 </div>
                 
-                <button type="submit" id="btnCadastrar">
-                    <span id="textoBotao">Cadastrar</span>
-                    <span id="carregando" class="carregando" style="display: none;"></span>
+                <button type="submit" class="btn" id="submitBtn">
+                    Criar Minha Conta
                 </button>
             </form>
-            
-            <div id="mensagem" class="mensagem"></div>
-            
-            <!-- Painel de Debug -->
-            <div class="debug-panel" id="debugPanel">
-                <div class="debug-header" onclick="toggleDebug()">
-                    <span>🔧 Debug Console</span>
-                    <span id="debugToggle">▶</span>
-                </div>
-                <div class="debug-content" id="debugContent">
-                    <div class="debug-log" id="debugLog"></div>
-                </div>
-            </div>
-            
-            <div class="links">
-                <p>Já tem cadastro? <a href="/login">Faça login aqui</a></p>
-                <p style="margin-top: 10px; font-size: 12px; color: #666;">
-                    Sistema: <span id="appStatus">Carregando...</span>
-                </p>
-            </div>
+
+            <div id="message" class="message"></div>
         </div>
     </div>
 
     <script>
-        // ============================================
-        // ELEMENTOS DO DOM
-        // ============================================
-        const form = document.getElementById('formCadastro');
+        const form = document.getElementById('cadastroForm');
         const emailInput = document.getElementById('email');
-        const btnCadastrar = document.getElementById('btnCadastrar');
-        const textoBotao = document.getElementById('textoBotao');
-        const carregando = document.getElementById('carregando');
-        const mensagemDiv = document.getElementById('mensagem');
-        const appStatus = document.getElementById('appStatus');
-        const debugLog = document.getElementById('debugLog');
-        const debugPanel = document.getElementById('debugPanel');
-        const debugContent = document.getElementById('debugContent');
-        const debugToggle = document.getElementById('debugToggle');
-        
-        // ============================================
-        // FUNÇÕES DE LOG E DEBUG
-        // ============================================
-        let logEntries = [];
-        
-        function addLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const entry = `[${timestamp}] ${message}`;
-            logEntries.push(entry);
-            
-            // Limita o log a 50 entradas
-            if (logEntries.length > 50) {
-                logEntries.shift();
-            }
-            
-            // Atualiza display
-            debugLog.textContent = logEntries.join('\n');
-            debugLog.scrollTop = debugLog.scrollHeight;
-            
-            // Mostra painel se for erro
-            if (type === 'error') {
-                debugPanel.style.display = 'block';
-            }
-            
-            // Log no console também
-            console.log(`[${type.toUpperCase()}] ${message}`);
-        }
-        
-        function toggleDebug() {
-            debugContent.classList.toggle('expanded');
-            debugToggle.textContent = debugContent.classList.contains('expanded') ? '▼' : '▶';
-        }
-        
-        function mostrarMensagem(texto, tipo) {
-            mensagemDiv.textContent = texto;
-            mensagemDiv.className = 'mensagem ' + tipo;
-            mensagemDiv.style.display = 'block';
-            addLog(`Frontend: ${texto}`, tipo === 'erro' ? 'error' : 'info');
-        }
-        
-        // ============================================
-        // VERIFICAÇÃO INICIAL DO SISTEMA
-        // ============================================
-        async function verificarSistema() {
-            addLog('Iniciando verificação do sistema...');
-            appStatus.textContent = 'Verificando...';
-            
-            try {
-                // Testa a raiz
-                addLog(`Testando conexão com: ${window.location.origin}/`);
-                const respostaRaiz = await fetch(window.location.origin + '/', {
-                    method: 'GET',
-                    headers: { 'Accept': 'text/html' }
-                });
-                
-                if (respostaRaiz.ok) {
-                    addLog(`✅ Página principal responde (${respostaRaiz.status})`);
-                } else {
-                    addLog(`⚠️ Página principal retornou ${respostaRaiz.status}`, 'warning');
-                }
-                
-                // Testa health check (se existir)
-                try {
-                    const respostaHealth = await fetch(window.location.origin + '/health', {
-                        method: 'GET',
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    
-                    if (respostaHealth.ok) {
-                        const dados = await respostaHealth.json();
-                        addLog(`✅ Health check: ${JSON.stringify(dados)}`);
-                    }
-                } catch (e) {
-                    addLog('ℹ️ Rota /health não encontrada (normal)');
-                }
-                
-                appStatus.textContent = 'Sistema online';
-                appStatus.style.color = '#4CAF50';
-                
-            } catch (erro) {
-                addLog(`❌ Erro na verificação: ${erro.message}`, 'error');
-                appStatus.textContent = 'Sistema offline';
-                appStatus.style.color = '#f44336';
-            }
-        }
-        
-        // ============================================
-        // FUNÇÃO PRINCIPAL DE CADASTRO
-        // ============================================
-        form.addEventListener('submit', async function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        const messageDiv = document.getElementById('message');
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const email = emailInput.value.trim();
             
-            // Validação básica
-            if (!email.includes('@') || !email.includes('.')) {
-                mostrarMensagem('Digite um email válido.', 'erro');
-                addLog(`Validação falhou: email inválido "${email}"`, 'warning');
+            if (!email || !email.includes('@')) {
+                showMessage('error', 'Por favor, insira um email válido.');
                 return;
             }
-            
-            // Limpa mensagens anteriores
-            mensagemDiv.style.display = 'none';
-            
-            // Mostra loading
-            btnCadastrar.disabled = true;
-            textoBotao.textContent = 'Enviando...';
-            carregando.style.display = 'inline-block';
-            
-            // Log da tentativa
-            addLog(`Iniciando cadastro para: ${email}`);
-            addLog(`URL destino: ${window.location.origin}/cadastrar`);
-            
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loader"></span>Cadastrando...';
+            messageDiv.style.display = 'none';
+
             try {
-                // Configura timeout de 30 segundos
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => {
-                    controller.abort();
-                    addLog('⏰ Timeout após 30 segundos', 'error');
-                }, 30000);
-                
-                // Faz a requisição
-                addLog('Enviando requisição POST...');
-                const startTime = Date.now();
-                
-                const resposta = await fetch('/cadastrar', {
+                const response = await fetch('/cadastrar', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ email: email }),
-                    signal: controller.signal
+                    body: JSON.stringify({ email })
                 });
-                
-                clearTimeout(timeoutId);
-                const endTime = Date.now();
-                const tempoResposta = endTime - startTime;
-                
-                addLog(`Resposta recebida em ${tempoResposta}ms`);
-                addLog(`Status HTTP: ${resposta.status} ${resposta.statusText}`);
-                
-                // Verifica tipo de conteúdo
-                const contentType = resposta.headers.get('content-type');
-                addLog(`Content-Type: ${contentType}`);
-                
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await resposta.text();
-                    addLog(`Resposta não é JSON: ${text.substring(0, 200)}`, 'error');
-                    throw new Error(`Servidor retornou ${contentType}, não JSON`);
-                }
-                
-                // Processa resposta JSON
-                const dados = await resposta.json();
-                addLog(`Resposta JSON: ${JSON.stringify(dados)}`);
-                
-                if (dados.sucesso) {
-                    mostrarMensagem(dados.mensagem, 'sucesso');
-                    emailInput.value = '';
-                    
-                    // Sugere ir para o login
-                    setTimeout(() => {
-                        mostrarMensagem('Você será redirecionado para o login em 5 segundos...', 'sucesso');
-                        setTimeout(() => {
-                            window.location.href = '/login';
-                        }, 5000);
-                    }, 2000);
-                    
+
+                const data = await response.json();
+
+                if (data.sucesso) {
+                    if (data.aviso) {
+                        showMessage('warning', data.mensagem);
+                    } else {
+                        showMessage('success', data.mensagem);
+                    }
+                    form.reset();
                 } else {
-                    mostrarMensagem(dados.mensagem, 'erro');
-                    addLog(`Cadastro falhou: ${dados.mensagem}`, 'error');
+                    showMessage('error', data.mensagem);
                 }
-                
-            } catch (erro) {
-                // Tratamento detalhado de erros
-                addLog(`❌ ERRO COMPLETO: ${erro.name} - ${erro.message}`, 'error');
-                
-                if (erro.name === 'AbortError') {
-                    mostrarMensagem('Timeout: Servidor demorou muito para responder. Tente novamente.', 'erro');
-                } else if (erro.name === 'TypeError' && erro.message.includes('Failed to fetch')) {
-                    mostrarMensagem('Não foi possível conectar ao servidor. Verifique sua conexão.', 'erro');
-                } else if (erro.name === 'SyntaxError') {
-                    mostrarMensagem('Erro no formato da resposta do servidor.', 'erro');
-                } else {
-                    mostrarMensagem(`Erro: ${erro.message}`, 'erro');
-                }
-                
-                // Mostra painel de debug em caso de erro
-                debugPanel.style.display = 'block';
-                
+            } catch (error) {
+                console.error('Erro:', error);
+                showMessage('error', 'Erro ao conectar com o servidor. Tente novamente.');
             } finally {
-                // Restaura botão
-                btnCadastrar.disabled = false;
-                textoBotao.textContent = 'Cadastrar';
-                carregando.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Criar Minha Conta';
             }
         });
-        
-        // ============================================
-        // TESTE MANUAL VIA CONSOLE
-        // ============================================
-        window.testeCadastro = async function(emailTeste = 'teste@exemplo.com') {
-            addLog(`Teste manual iniciado para: ${emailTeste}`);
+
+        function showMessage(type, text) {
+            messageDiv.className = `message ${type}`;
             
-            try {
-                const resposta = await fetch('/cadastrar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: emailTeste})
-                });
-                
-                const dados = await resposta.json();
-                addLog(`Teste retornou: ${JSON.stringify(dados)}`);
-                console.log('Resultado do teste:', dados);
-                return dados;
-                
-            } catch (erro) {
-                addLog(`Teste falhou: ${erro.message}`, 'error');
-                console.error('Teste falhou:', erro);
-                return {sucesso: false, erro: erro.message};
+            let icon = '';
+            let title = '';
+            
+            if (type === 'success') {
+                icon = '✓';
+                title = 'Sucesso!';
+            } else if (type === 'error') {
+                icon = '✕';
+                title = 'Ops!';
+            } else if (type === 'warning') {
+                icon = '⚠';
+                title = 'Atenção!';
             }
-        };
-        
-        // ============================================
-        // INICIALIZAÇÃO
-        // ============================================
-        window.onload = function() {
-            addLog('Página carregada');
-            addLog(`URL atual: ${window.location.href}`);
-            addLog(`Hostname: ${window.location.hostname}`);
             
-            emailInput.focus();
-            
-            // Verifica sistema após 1 segundo
-            setTimeout(verificarSistema, 1000);
-            
-            // Mostra como testar via console
-            console.log('=== SISTEMA DE CADASTRO ===');
-            console.log('Para testar manualmente, use: testeCadastro("seu@email.com")');
-            console.log('Logs detalhados no painel de debug da página');
-        };
+            messageDiv.innerHTML = `<strong>${icon} ${title}</strong> ${text}`;
+            messageDiv.style.display = 'block';
+        }
     </script>
 </body>
 </html>
